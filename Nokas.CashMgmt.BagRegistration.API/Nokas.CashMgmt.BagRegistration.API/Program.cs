@@ -24,6 +24,11 @@ builder.Host.UseSerilog((context, services, configuration) =>
         .WriteTo.ApplicationInsights(
             services.GetRequiredService<TelemetryClient>(),
             TelemetryConverter.Traces);
+
+    if (context.HostingEnvironment.IsDevelopment())
+    {
+        configuration.WriteTo.Console();
+    }
 });
 
 builder.Services.AddApplicationInsightsTelemetry(options =>

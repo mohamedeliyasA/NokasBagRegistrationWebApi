@@ -1,0 +1,49 @@
+# Visual Studio user-specific files
+.vs/
+*.user
+*.suo
+
+# Build output
+bin/
+obj/
+out/
+Debug/
+Release/
+Properties/
+
+# Azure Functions local settings (contains secrets)
+local.settings.json
+
+# Azure Functions Core Tools artifacts
+.azurefunctions/
+funcignore
+
+# Publish profiles
+*.pubxml
+*.publishproj
+
+# Logs
+*.log
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+*.nuget.props
+*.nuget.targets
+
+# Resharper / Rider
+_ReSharper*/
+*.DotSettings.user
+
+# VS Code settings
+.vscode/
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+
+# OS-specific
+.DS_Store
+Thumbs.db

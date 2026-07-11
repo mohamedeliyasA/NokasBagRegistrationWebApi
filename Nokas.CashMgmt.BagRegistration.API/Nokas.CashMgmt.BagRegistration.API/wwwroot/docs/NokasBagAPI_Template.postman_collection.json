@@ -1,0 +1,322 @@
+{
+  "info": {
+    "_postman_id": "2ef937c1-296a-492d-971a-8f65d1037ba2",
+    "name": "Nokas.CashBagManagement.API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "4094920"
+  },
+  "item": [
+    {
+      "name": "GetBagRegistration",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "auth": {
+          "type": "oauth2",
+          "oauth2": [
+            {
+              "key": "scope",
+              "value": "{{scope}}",
+              "type": "string"
+            },
+            {
+              "key": "client_authentication",
+              "value": "header",
+              "type": "string"
+            },
+            {
+              "key": "clientSecret",
+              "value": "{{client_secret}}",
+              "type": "string"
+            },
+            {
+              "key": "clientId",
+              "value": "{{client_id}}",
+              "type": "string"
+            },
+            {
+              "key": "accessTokenUrl",
+              "value": "https://login.microsoftonline.com/{{tenant_id}}/oauth2/v2.0/token",
+              "type": "string"
+            },
+            {
+              "key": "tokenName",
+              "value": "CashBagAPIToken",
+              "type": "string"
+            },
+            {
+              "key": "addTokenTo",
+              "value": "header",
+              "type": "string"
+            },
+            {
+              "key": "grant_type",
+              "value": "client_credentials",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "GET",
+        "header": [
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbf",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "formdata",
+          "formdata": []
+        },
+        "url": {
+          "raw": "https://localhost:{{CashBagAPIPortNumber}}/api/cashbag/394857349857",
+          "protocol": "https",
+          "host": [
+            "localhost"
+          ],
+          "port": "{{CashBagAPIPortNumber}}",
+          "path": [
+            "api",
+            "cashbag",
+            "394857349857"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "PostBagRegistration",
+      "request": {
+        "auth": {
+          "type": "oauth2",
+          "oauth2": [
+            {
+              "key": "clientId",
+              "value": "{{client_id}}",
+              "type": "string"
+            },
+            {
+              "key": "scope",
+              "value": "{{scope}}",
+              "type": "string"
+            },
+            {
+              "key": "client_authentication",
+              "value": "header",
+              "type": "string"
+            },
+            {
+              "key": "clientSecret",
+              "value": "{{client_secret}}",
+              "type": "string"
+            },
+            {
+              "key": "accessTokenUrl",
+              "value": "https://login.microsoftonline.com/{{tenant_id}}/oauth2/v2.0/token",
+              "type": "string"
+            },
+            {
+              "key": "tokenName",
+              "value": "CashBagAPIToken",
+              "type": "string"
+            },
+            {
+              "key": "addTokenTo",
+              "value": "header",
+              "type": "string"
+            },
+            {
+              "key": "grant_type",
+              "value": "client_credentials",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/json",
+            "type": "text"
+          },
+          {
+            "key": "X-Correlation-ID",
+            "value": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbG",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\r\n  \"bagRegistration\": {\r\n    \"customerNumber\": \"123451\",\r\n    \"customerName\": \"ABC Corp\",\r\n    \"customerCountry\": \"Norway\",\r\n    \"registrationType\": \"NOK\",\r\n    \"serviceNowOrderNumber\": \"SN123456\",\r\n    \"downstreamOrderNumber\": \"AX789456\",\r\n    \"messageId\": \"MSG001\",\r\n    \"senderSystem\": \"SN-CMS-NO\",\r\n    \"senderCorrId\": \"CORR123456\",\r\n    \"bagNumber\": \"394857349858\",\r\n    \"actionFlag\": \"new\",\r\n    \"registrationDate\": \"2025-06-14T00:00:00+02:00\",\r\n    \"referenceStatement\": \"Ref123\",\r\n    \"turnOverDate\": \"2025-06-13T00:00:00+02:00\",\r\n    \"registeredBy\": \"user123\",\r\n    \"easySafeAccount\": \"EASY123\",\r\n    \"registeredCash\": \"200.00\",\r\n    \"registeredCoins\": \"100.00\",\r\n    \"registeredChecks\": \"50.00\",\r\n    \"totalOrderAmountLC\": \"350.00\",\r\n    \"totalOrderAmountFC\": \"60.00\",\r\n    \"bagItemsLC\": {\r\n      \"seddel1000\": \"2\",\r\n      \"seddel500\": \"10\",\r\n      \"seddel200\": \"10\",\r\n      \"seddel100\": \"20\",\r\n      \"seddel50\": \"40\"\r\n    },\r\n    \"bagItemsFC\": [\r\n      {\r\n        \"itemId\": \"ITEM001\",\r\n        \"itemCurrencyCode\": \"EUR\",\r\n        \"quantity\": \"60\",\r\n        \"baseCurrencyCode\": \"NOK\",\r\n        \"itemCurrencyAmountFC\": \"60\",\r\n        \"itemCurrencyAmountLC\": \"600\",\r\n        \"exchangeRate\": \"10\",\r\n        \"itemUnitPrice\": \"10\"\r\n      },\r\n      {\r\n        \"itemId\": \"ITEM002\",\r\n        \"itemCurrencyCode\": \"USD\",\r\n        \"quantity\": \"100\",\r\n        \"baseCurrencyCode\": \"NOK\",\r\n        \"itemCurrencyAmountFC\": \"100\",\r\n        \"itemCurrencyAmountLC\": \"1000\",\r\n        \"exchangeRate\": \"10\",\r\n        \"itemUnitPrice\": \"10\"\r\n      }\r\n    ]\r\n  },\r\n  \"cacheDbRegistrationId\": \"REG001\",\r\n  \"registrationType\": \"NOK\",\r\n  \"customerCountry\": \"Norway\"\r\n}\r\n",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://localhost:{{CashBagAPIPortNumber}}/api/cashbag/register",
+          "protocol": "https",
+          "host": [
+            "localhost"
+          ],
+          "port": "{{CashBagAPIPortNumber}}",
+          "path": [
+            "api",
+            "cashbag",
+            "register"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "UpdateBagRegistration",
+      "request": {
+        "auth": {
+          "type": "oauth2",
+          "oauth2": [
+            {
+              "key": "scope",
+              "value": "{{scope}}",
+              "type": "string"
+            },
+            {
+              "key": "client_authentication",
+              "value": "header",
+              "type": "string"
+            },
+            {
+              "key": "clientSecret",
+              "value": "{{client_secret}}",
+              "type": "string"
+            },
+            {
+              "key": "clientId",
+              "value": "{{client_id}}",
+              "type": "string"
+            },
+            {
+              "key": "accessTokenUrl",
+              "value": "https://login.microsoftonline.com/{{tenant_id}}/oauth2/v2.0/token",
+              "type": "string"
+            },
+            {
+              "key": "tokenName",
+              "value": "CashBagAPIToken",
+              "type": "string"
+            },
+            {
+              "key": "addTokenTo",
+              "value": "header",
+              "type": "string"
+            },
+            {
+              "key": "grant_type",
+              "value": "client_credentials",
+              "type": "string"
+            }
+          ]
+        },
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/xml",
+            "type": "text"
+          },
+          {
+            "key": "Accept",
+            "value": "application/xml",
+            "type": "text"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\r\n<CashBagRegistrationForCreationDto>\r\n     <registrations>\r\n         <actionFlag>A</actionFlag>\r\n         <customerNumber>Eli1234</customerNumber>\r\n         <customerAddress>123 Main St</customerAddress>\r\n         <bagNumber>BAG123</bagNumber>\r\n         <turnoverDate>2025-05-15T21:15:42.681218+02:00</turnoverDate>\r\n         <referenceStatement>Ref123</referenceStatement>\r\n         <exchangeRates>\r\n             <exchangeRate>1.0</exchangeRate>\r\n         </exchangeRates>\r\n         <registrationDate>2025-05-15T21:15:42.6813649+02:00</registrationDate>\r\n         <registeredBy>User123</registeredBy>\r\n         <registeredCoins>100</registeredCoins>\r\n         <registeredCash>200</registeredCash>\r\n         <registeredChecks>50</registeredChecks>\r\n         <registeredForeignCurrency>30</registeredForeignCurrency>\r\n         <totalAmount>380</totalAmount>\r\n         <locationId>LOC123</locationId>\r\n         <shopNumber>SHOP123</shopNumber>\r\n         <easySafeAccount>EASY123</easySafeAccount>\r\n         <registrationApproval>1</registrationApproval>\r\n         <notes>\r\n             <seddel1000>Note1000</seddel1000>\r\n             <seddel500>Note500</seddel500>\r\n             <seddel200>Note200</seddel200>\r\n             <seddel100>Note100</seddel100>\r\n             <seddel50>Note50</seddel50>\r\n         </notes>\r\n         <contracts>\r\n             <containsValuta>true</containsValuta>\r\n         </contracts>\r\n         <nightSafeId>NIGHT123</nightSafeId>\r\n         <registrationSubType>SubType1</registrationSubType>\r\n         <foreignCurrencies>USD, EUR</foreignCurrencies>\r\n         <confirmFlag>Y</confirmFlag>\r\n         <registeredUserId>User123</registeredUserId>\r\n         <vouchers>\r\n             <voucherDetails></voucherDetails>\r\n         </vouchers>\r\n            <vouchers>\r\n             <voucherDetails></voucherDetails>\r\n         </vouchers>\r\n     </registrations>\r\n     <cacheDbRegistrationId>1</cacheDbRegistrationId>\r\n     <customerCountry>Norway</customerCountry>\r\n </CashBagRegistrationForCreationDto>\r\n",
+          "options": {
+            "raw": {
+              "language": "xml"
+            }
+          }
+        },
+        "url": {
+          "raw": "https://localhost:{{CashBagAPIPortNumber}}/api/cashbag/394857349857",
+          "protocol": "https",
+          "host": [
+            "localhost"
+          ],
+          "port": "{{CashBagAPIPortNumber}}",
+          "path": [
+            "api",
+            "cashbag",
+            "394857349857"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "TokenRequest",
+      "protocolProfileBehavior": {
+        "disableBodyPruning": true
+      },
+      "request": {
+        "method": "GET",
+        "header": [],
+        "body": {
+          "mode": "urlencoded",
+          "urlencoded": [
+            {
+              "key": "grant_type",
+              "value": "client_credentials",
+              "type": "text"
+            },
+            {
+              "key": "client_id",
+              "value": "{{client_id}}",
+              "type": "text"
+            },
+            {
+              "key": "client_secret",
+              "value": "{{client_secret}}",
+              "type": "text"
+            },
+            {
+              "key": "scope",
+              "value": "{{scope}}",
+              "type": "text"
+            }
+          ]
+        },
+        "url": {
+          "raw": "https://login.microsoftonline.com/24aa7821-e848-457d-99f0-3b40c5519ad6/oauth2/v2.0/token",
+          "protocol": "https",
+          "host": [
+            "login",
+            "microsoftonline",
+            "com"
+          ],
+          "path": [
+            "24aa7821-e848-457d-99f0-3b40c5519ad6",
+            "oauth2",
+            "v2.0",
+            "token"
+          ]
+        }
+      },
+      "response": []
+    }
+  ]
+}

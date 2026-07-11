@@ -1,0 +1,44 @@
+﻿{
+  "$schema": "http://json.schemastore.org/launchsettings.json",
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:62863",
+      "sslPort": 44368
+    }
+  },
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "http://localhost:5110",
+        "environmentVariables": {
+            "ASPNETCORE_ENVIRONMENT": "Development",
+            "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=9f6e6d09-f672-487f-bcfa-25283be2d151;IngestionEndpoint=https://norwayeast-0.in.applicationinsights.azure.com/"
+        }
+    },
+    "https": {
+      "commandName": "Project",
+      "dotnetRunMessages": true,
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+      "applicationUrl": "https://localhost:7206;http://localhost:5110",
+        "environmentVariables": {
+            "ASPNETCORE_ENVIRONMENT": "Development",
+            "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=9f6e6d09-f672-487f-bcfa-25283be2d151;IngestionEndpoint=https://norwayeast-0.in.applicationinsights.azure.com/"
+        }
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "launchUrl": "swagger",
+        "environmentVariables": {
+            "ASPNETCORE_ENVIRONMENT": "Development",
+            "APPLICATIONINSIGHTS_CONNECTION_STRING": "InstrumentationKey=9f6e6d09-f672-487f-bcfa-25283be2d151;IngestionEndpoint=https://norwayeast-0.in.applicationinsights.azure.com/"
+        }
+    }
+  }
+}

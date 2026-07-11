@@ -1,0 +1,36 @@
+<TrustFrameworkPolicy xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns="http://schemas.microsoft.com/online/cpim/schemas/2013/06" PolicySchemaVersion="0.3.0.0" TenantId="nokasb2ctest.onmicrosoft.com" PolicyId="B2C_1A_NokasIntegrationPortal_signup_signin" DeploymentMode="Development" UserJourneyRecorderEndpoint="urn:journeyrecorder:applicationinsights" PublicPolicyUri="http://nokasb2ctest.onmicrosoft.com/B2C_1A_NokasIntegrationPortal_signup_signin" TenantObjectId="24aa7821-e848-457d-99f0-3b40c5519ad6">
+  <BasePolicy>
+    <TenantId>nokasb2ctest.onmicrosoft.com</TenantId>
+    <PolicyId>B2C_1A_NokasIntegrationPortal_TrustFrameworkExtensions</PolicyId>
+  </BasePolicy>
+  <RelyingParty>
+    <DefaultUserJourney ReferenceId="SignUpOrSignInLocal" />
+    <Endpoints>
+      <Endpoint Id="UserInfo" UserJourneyReferenceId="UserInfoJourney" />
+      <!--points to refresh token journey when app makes refresh token request-->
+      <Endpoint Id="Token" UserJourneyReferenceId="RedeemRefreshToken" />
+    </Endpoints>
+    <UserJourneyBehaviors>
+      <JourneyInsights TelemetryEngine="ApplicationInsights" ConnectionString="InstrumentationKey=07ac5889-602a-4f7a-9606-e03e4b952710;IngestionEndpoint=https://norwayeast-0.in.applicationinsights.azure.com/;LiveEndpoint=https://norwayeast.livediagnostics.monitor.azure.com/;ApplicationId=a1c3995e-b2cc-4b23-934f-217bb923b95b" DeveloperMode="true" ClientEnabled="false" ServerEnabled="true" TelemetryVersion="1.0.0" />
+    </UserJourneyBehaviors>
+    <TechnicalProfile Id="PolicyProfile">
+      <DisplayName>PolicyProfile</DisplayName>
+      <Protocol Name="OpenIdConnect" />
+      <OutputClaims>
+        <OutputClaim ClaimTypeReferenceId="displayName" />
+        <OutputClaim ClaimTypeReferenceId="givenName" />
+        <OutputClaim ClaimTypeReferenceId="surname" />
+        <OutputClaim ClaimTypeReferenceId="email" />
+        <OutputClaim ClaimTypeReferenceId="api_companyName" PartnerClaimType="api_companyName" />
+        <OutputClaim ClaimTypeReferenceId="api_clientId" PartnerClaimType="api_clientId" />
+        <OutputClaim ClaimTypeReferenceId="api_contactPerson" PartnerClaimType="api_contactPerson" />
+        <OutputClaim ClaimTypeReferenceId="api_contactPersonEmail" PartnerClaimType="api_contactPersonEmail" />
+        <OutputClaim ClaimTypeReferenceId="objectId" PartnerClaimType="sub" />
+        <OutputClaim ClaimTypeReferenceId="identityProvider" />
+        <OutputClaim ClaimTypeReferenceId="tenantId" AlwaysUseDefaultValue="true" DefaultValue="{Policy:TenantObjectId}" />
+        <OutputClaim ClaimTypeReferenceId="signInNames.emailAddress" PartnerClaimType="email" />
+      </OutputClaims>
+      <SubjectNamingInfo ClaimType="sub" />
+    </TechnicalProfile>
+  </RelyingParty>
+</TrustFrameworkPolicy>

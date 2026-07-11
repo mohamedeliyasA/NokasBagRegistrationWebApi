@@ -1,0 +1,73 @@
+# .NET build artifacts
+bin/
+obj/
+out/
+.config/
+
+# Folders
+logs/
+Migrations/
+/Nokas.CashMgmt.BagRegistration.API/Properties/ServiceDependencies/
+Properties/ServiceDependencies
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# ASP.NET Scaffolding
+ScaffoldingReadMe.txt
+
+# Visual Studio files
+.vscode/
+.vs/
+
+# Build results
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Rider files
+.idea/
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Azure settings
+**/appsettings.*.json
+appsettings.Development.json
+appsettings.Production.json
+appsettings.Test.json
+appsettings.Local.json
+appsettings.*.Secrets.json
+
+# Environment files
+.env
+
+# Publish artifacts
+publish/
+*.PublishSettings
+*.pubxml
+*.publishproj
+
+# Azure Function artifacts
+.local.settings.json
+
+# NuGet
+*.nupkg
+.nuget/
+packages/
+*.snupkg
+
+# Others
+*.vspscc
+*.vssscc
+*.dbmdl
+*.bak
+*.sql
+

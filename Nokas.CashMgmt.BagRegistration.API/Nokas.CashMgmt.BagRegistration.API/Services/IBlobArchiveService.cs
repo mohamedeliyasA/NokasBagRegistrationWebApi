@@ -2,7 +2,9 @@
 {
     public interface IBlobArchiveService
     {
-        Task ArchivePayloadAsync(string blobName, string content);
+        Task EnsureContainerExistsAsync(CancellationToken cancellationToken = default);
+
+        Task ArchivePayloadAsync(string blobName, string content, CancellationToken cancellationToken = default);
     }
 
 }

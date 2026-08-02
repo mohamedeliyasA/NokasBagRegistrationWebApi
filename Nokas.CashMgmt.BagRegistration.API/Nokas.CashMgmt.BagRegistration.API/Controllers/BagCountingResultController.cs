@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using Microsoft.AspNetCore.Authorization;
+﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Nokas.CashMgmt.BagRegistration.API.Helpers;
 using Nokas.CashMgmt.BagRegistration.API.Models;
@@ -9,35 +8,23 @@ using System.Text.Json;
 
 namespace Nokas.CashMgmt.BagRegistration.API.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = "PartnerAccess")]
     [Route("api/cash-mgmt/bag-countingresult")]
     [ApiController]
     [Produces("application/json", "application/xml")]
-    public class BagCountingResultController : Controller
+    public class BagCountingResultController : ControllerBase
     {
         private readonly ILogger<BagCountingResultController> _logger;
         private readonly IBagRegistrationRepo _bagRegistrationRepo;
-        private readonly IBlobArchiveService _blobArchiveService;
-        private readonly IServiceBusSender _serviceBusSender;
-        private readonly IMapper _mapper;
-        private readonly IConfiguration _configuration;
         private readonly IFunctionInvoker _functionInvoker;
 
         public BagCountingResultController(
             ILogger<BagCountingResultController> logger,
             IBagRegistrationRepo bagRegistrationRepo,
-            IBlobArchiveService blobArchiveService,
-            IServiceBusSender serviceBusSender,
-            IConfiguration configuration,
-            IMapper mapper,
             IFunctionInvoker functionInvoker)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _bagRegistrationRepo = bagRegistrationRepo ?? throw new ArgumentNullException(nameof(bagRegistrationRepo));
-            _blobArchiveService = blobArchiveService ?? throw new ArgumentNullException(nameof(blobArchiveService));
-            _serviceBusSender = serviceBusSender ?? throw new ArgumentNullException(nameof(serviceBusSender));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _functionInvoker = functionInvoker ?? throw new ArgumentNullException(nameof(functionInvoker));
         }
 
@@ -45,6 +32,10 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
             HttpContext?.Items["CorrelationId"]?.ToString() ?? Guid.NewGuid().ToString();
 
         [HttpGet("{bagNumber}")]
+        [ProducesResponseType(typeof(BagCountingResultResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status408RequestTimeout)]
+        [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
         public async Task<IActionResult> GetBagCountingResult(string bagNumber)
         {
             string? customerNumber = null;
@@ -60,7 +51,7 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
             var requestCorrelationId = GetCorrelationId();
             var clientId = ClaimsHelper.GetClientId(User);
 
-            var existing = await _bagRegistrationRepo.GetBagByNumberForClientAsync(bagNumber, clientId);
+            var existing = await _bagRegistrationRepo.GetBagByNumberForClientAsync(bagNumber, clientId, HttpContext.RequestAborted);
             if (existing == null)
                 return NotFound(BagRegResponse.CreateNotFoundSummary(bagNumber, clientId, requestCorrelationId));
 
@@ -114,16 +105,6 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
                 _logger.LogError(ex, "Error verifying bag counting result for bag {Bag}", bagNumber);
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, "Unable to verify bag counting result.");
             }
-
-            // ✅ Add history
-            existing.OperationHistory.Add(new OperationHistoryEntry
-            {
-                Action = "BagCountingResultRetrieved",
-                Timestamp = DateTime.UtcNow,
-                BagLifeCycleId = existing.CorrelationId,
-                RequestCorrelationId = requestCorrelationId,
-                PerformedBy = clientId
-            });
 
             // ✅ Build response dynamically
 

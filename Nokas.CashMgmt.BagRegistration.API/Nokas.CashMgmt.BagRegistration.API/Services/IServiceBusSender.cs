@@ -2,6 +2,6 @@
 {
     public interface IServiceBusSender
     {
-        Task SendMessageAsync(string messageBody, string subject);
+        Task SendMessageAsync(string messageBody, string subject, string? messageId = null, CancellationToken cancellationToken = default);
     }
 }

@@ -1,5 +1,4 @@
-﻿
-using System.Net.Http;
+
 using System.Text.Json;
 using AutoMapper;
 using Microsoft.AspNetCore.Authorization;
@@ -11,37 +10,25 @@ using Nokas.CashMgmt.BagRegistration.API.Services;
 
 namespace Nokas.CashMgmt.BagRegistration.API.Controllers
 {
-    [Authorize]
+    [Authorize(Policy = "PartnerAccess")]
     [Route("api/cash-mgmt/bag-registration")]
     [ApiController]
     [Produces("application/json", "application/xml")]
-    public class BagRegistrationController : Controller
+    public class BagRegistrationController : ControllerBase
     {
         private readonly ILogger<BagRegistrationController> _logger;
         private readonly IBagRegistrationRepo _bagRegistrationRepo;
-        private readonly IBlobArchiveService _blobArchiveService;
-        private readonly IServiceBusSender _serviceBusSender;
         private readonly IMapper _mapper;
-        private readonly IHttpClientFactory? _httpClientFactory;
-        private readonly IConfiguration _configuration;
         private readonly IFunctionInvoker _functionInvoker;
 
         public BagRegistrationController(
             ILogger<BagRegistrationController> logger,
             IBagRegistrationRepo bagRegistrationRepo,
-            IBlobArchiveService blobArchiveService,
-            IServiceBusSender serviceBusSender,
-            IConfiguration configuration,
-            IHttpClientFactory? httpClientFactory,
             IMapper mapper,
             IFunctionInvoker functionInvoker)
         {
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
             _bagRegistrationRepo = bagRegistrationRepo ?? throw new ArgumentNullException(nameof(bagRegistrationRepo));
-            _blobArchiveService = blobArchiveService ?? throw new ArgumentNullException(nameof(blobArchiveService));
-            _serviceBusSender = serviceBusSender ?? throw new ArgumentNullException(nameof(serviceBusSender));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
-            _httpClientFactory = httpClientFactory;
             _mapper = mapper ?? throw new ArgumentNullException(nameof(mapper));
             _functionInvoker = functionInvoker ?? throw new ArgumentNullException(nameof(functionInvoker));
         }
@@ -50,6 +37,9 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
           HttpContext?.Items["CorrelationId"]?.ToString() ?? "N/A";
 
         [HttpGet("{bagNumber}", Name = "GetBagRegistration")]
+        [ProducesResponseType(typeof(BagRegistrationRequestForCreation), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(typeof(BagRegResponse), StatusCodes.Status404NotFound)]
         public async Task<ActionResult<BagRegistrationRequestForCreation>> GetBagRegistrationByNumber(string bagNumber)
         {
             var requestCorrelationId = GetCorrelationId();
@@ -61,23 +51,12 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
                 return Unauthorized();
             }
 
-            var bagRegistration = await _bagRegistrationRepo.GetBagByNumberForClientAsync(bagNumber, clientId);
+            var bagRegistration = await _bagRegistrationRepo.GetBagByNumberForClientAsync(bagNumber, clientId, HttpContext.RequestAborted);
             if (bagRegistration == null)
             {
                 _logger.LogWarning("BagNotFound, Bag Number: {bagNumber} CorrelationId: {CorrelationId} - ClientId : {clientId}", bagNumber, requestCorrelationId, clientId);
                 return NotFound(BagRegResponse.CreateNotFoundSummary(bagNumber, clientId, requestCorrelationId));
             }
-
-            bagRegistration.OperationHistory.Add(new OperationHistoryEntry
-            {
-                Action = "Read",
-                Timestamp = DateTime.UtcNow,
-                BagLifeCycleId = bagRegistration.CorrelationId,
-                RequestCorrelationId = requestCorrelationId,
-                PerformedBy = clientId
-            });
-
-            await _bagRegistrationRepo.UpdateBagRegistration(bagRegistration);
 
             var bagRegRes = _mapper.Map<BagRegistrationRequestForCreation>(bagRegistration);
 
@@ -86,17 +65,15 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
 
 
         [HttpPost]
+        [ProducesResponseType(typeof(BagRegResponse), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(ErrorResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(typeof(BagRegResponse), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
         public async Task<ActionResult<BagRegResponse>> CreateBagRegistration(BagRegistrationRequestForCreation bagRequest)
         {
             var bagLifecycleId = Guid.NewGuid().ToString();
             var requestCorrelationId = GetCorrelationId();
             var clientId = ClaimsHelper.GetClientId(User);
-
-            if (bagRequest == null || !ModelState.IsValid)
-            {
-                _logger.LogError("CorrelationId: {CorrelationId} - Invalid model or bad request for {RequestPath}.", requestCorrelationId, Request.Path);
-                return this.BuildValidationError<BagRegResponse>();
-            }
 
             // Validate if bag exist before creation.
             try
@@ -148,19 +125,18 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
                 archiveBlobName = HttpContext.Items["ArchivedBlobName"] as string
             });
 
-            // Send to Service Bus 
             bagRequest.BagRegistration.ActionFlag = "Create";
             bagRequest.BagRegistration.RegisteredBy = $@"API_{clientId}";
-            await _serviceBusSender.SendMessageAsync(
-                JsonSerializer.Serialize(bagRequest),
-                "bagregistration"
-            );
 
-            // Save to Cosmos
-            await _bagRegistrationRepo.CreateBagRegistration(newBagRegistrationRequest);
+            var outboxMessage = new OutboxMessage
+            {
+                Subject = "bagregistration",
+                Payload = JsonSerializer.Serialize(bagRequest)
+            };
 
-
-   
+            // Atomically save the bag document and its outbox event (Cosmos transactional batch) —
+            // Cosmos is the single source of truth; the outbox dispatcher publishes to Service Bus.
+            await _bagRegistrationRepo.CreateBagRegistration(newBagRegistrationRequest, outboxMessage, HttpContext.RequestAborted);
 
             var bagSummary = new BagRegResponse
             {
@@ -175,10 +151,16 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
             _logger.LogInformation("BagLifecycleId: {BagLifecycleId}, CorrelationId: {CorrelationId} - Bag registration created successfully.",
                 bagLifecycleId, requestCorrelationId);
 
-            return Ok(bagSummary);
+            return CreatedAtRoute("GetBagRegistration", new { bagNumber = bagSummary.BagNumber }, bagSummary);
         }
 
         [HttpDelete("{bagNumber}", Name = "DeleteBag")]
+        [ProducesResponseType(typeof(BagRegResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(BagRegResponse), StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(BagRegResponse), StatusCodes.Status409Conflict)]
+        [ProducesResponseType(StatusCodes.Status408RequestTimeout)]
+        [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
         public async Task<ActionResult<BagRegResponse>> DeleteBagRegistration(string bagNumber)
         {
             // Extract all expected properties
@@ -194,7 +176,7 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
             var requestCorrelationId = GetCorrelationId();
             var clientId = ClaimsHelper.GetClientId(User);
 
-            var existing = await _bagRegistrationRepo.GetBagByNumberForClientAsync(bagNumber, clientId);
+            var existing = await _bagRegistrationRepo.GetBagByNumberForClientAsync(bagNumber, clientId, HttpContext.RequestAborted);
             if (existing == null)
                 return NotFound(BagRegResponse.CreateNotFoundSummary(bagNumber, clientId, requestCorrelationId));
 
@@ -209,7 +191,7 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
                     return NotFound(new { message = "Bag not found (status verification)." });
                 }
 
-                var json = jsonElement.Value; 
+                var json = jsonElement.Value;
 
                 // --- Parse JSON values ---
                 if (json.TryGetProperty("intStatus", out var st) && st.TryGetInt32(out var sVal))
@@ -254,7 +236,7 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
                     {
                         existing.RegistrationStatus = "Deleted";
                         existing.BagRegistration.ActionFlag = "Cancelled";
-                        await _bagRegistrationRepo.UpdateBagRegistration(existing);
+                        await _bagRegistrationRepo.UpdateBagRegistration(existing, HttpContext.RequestAborted);
                     }
 
                     var res = _mapper.Map<BagRegResponse>(existing);
@@ -300,9 +282,7 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
                 PerformedBy = clientId
             });
 
-            await _bagRegistrationRepo.UpdateBagRegistration(existing);
-
-            // --- Send cancellation message ---
+            // --- Build cancellation message ---
             var cancelMessage = new
             {
                 cancelBagRegistration = new
@@ -328,10 +308,14 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
                 DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull
             };
 
-            await _serviceBusSender.SendMessageAsync(
-                JsonSerializer.Serialize(cancelMessage, jsonOptions),
-                "deleteBagRegistration"
-            );
+            var outboxMessage = new OutboxMessage
+            {
+                Subject = "deleteBagRegistration",
+                Payload = JsonSerializer.Serialize(cancelMessage, jsonOptions)
+            };
+
+            // Atomically update the bag document and write its outbox event (Cosmos transactional batch).
+            await _bagRegistrationRepo.UpdateBagRegistrationWithOutboxAsync(existing, outboxMessage, HttpContext.RequestAborted);
 
             var bagSummaryRes = new BagRegResponse
             {

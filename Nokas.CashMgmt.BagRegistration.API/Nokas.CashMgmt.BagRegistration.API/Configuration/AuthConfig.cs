@@ -22,6 +22,9 @@ namespace Nokas.CashMgmt.BagRegistration.API.Configuration
                         ValidateAudience = true,
                         ValidateLifetime = true,
                         ValidateIssuerSigningKey = true
+                        // RoleClaimType intentionally left at its default (ClaimTypes.Role).
+                        // The JWT handler's default inbound claim mapping already renames the
+                        // token's "roles" claim to that same URI, so no override is needed.
                     };
 
                     options.Events = new JwtBearerEvents
@@ -34,6 +37,14 @@ namespace Nokas.CashMgmt.BagRegistration.API.Configuration
                         }
                     };
                 });
+        }
+
+        public static void AddApiAuthorizationPolicies(this IServiceCollection services)
+        {
+            services.AddAuthorization(options =>
+            {
+                options.AddPolicy("PartnerAccess", policy => policy.RequireRole("cashbag.api.access"));
+            });
         }
     }
 }

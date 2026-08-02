@@ -14,14 +14,18 @@ namespace Nokas.CashMgmt.BagRegistration.API.Services
         {
             var config = options.Value;
             _containerClient = new BlobContainerClient(config.ConnectionString, config.ContainerName);
-            _containerClient.CreateIfNotExists();
         }
 
-        public async Task ArchivePayloadAsync(string blobName, string content)
+        public async Task EnsureContainerExistsAsync(CancellationToken cancellationToken = default)
+        {
+            await _containerClient.CreateIfNotExistsAsync(cancellationToken: cancellationToken);
+        }
+
+        public async Task ArchivePayloadAsync(string blobName, string content, CancellationToken cancellationToken = default)
         {
             var blobClient = _containerClient.GetBlobClient(blobName);
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(content));
-            await blobClient.UploadAsync(stream, overwrite: true);
+            await blobClient.UploadAsync(stream, overwrite: true, cancellationToken: cancellationToken);
         }
     }
 }

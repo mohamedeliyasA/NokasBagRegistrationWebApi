@@ -5,28 +5,38 @@ using Nokas.CashMgmt.BagRegistration.API.Configuration;
 
 namespace Nokas.CashMgmt.BagRegistration.API.Services
 {
-    public class ServiceBusSender : IServiceBusSender
+    public class ServiceBusSender : IServiceBusSender, IAsyncDisposable
     {
         private readonly ServiceBusClient _client;
-        private readonly string _topicName;
+        private readonly Azure.Messaging.ServiceBus.ServiceBusSender _sender;
 
         public ServiceBusSender(IOptions<ServiceBusOptions> options)
         {
             var config = options.Value;
             _client = new ServiceBusClient(config.ConnectionString);
-            _topicName = config.TopicName;
+            _sender = _client.CreateSender(config.TopicName);
         }
 
-        public async Task SendMessageAsync(string messageBody, string subject)
+        public async Task SendMessageAsync(string messageBody, string subject, string? messageId = null, CancellationToken cancellationToken = default)
         {
-            var sender = _client.CreateSender(_topicName);
             var message = new ServiceBusMessage(messageBody)
             {
                 Subject = subject,
                 ContentType = "application/json"
             };
 
-            await sender.SendMessageAsync(message);
+            if (!string.IsNullOrEmpty(messageId))
+            {
+                message.MessageId = messageId;
+            }
+
+            await _sender.SendMessageAsync(message, cancellationToken);
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            await _sender.DisposeAsync();
+            await _client.DisposeAsync();
         }
     }
 }

@@ -1,7 +1,8 @@
-﻿using System.Net.Http.Json;
+using System.Net.Http.Json;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using Nokas.CashMgmt.BagRegistration.API.Configuration;
 
 namespace Nokas.CashMgmt.BagRegistration.API.Services
 {
@@ -12,37 +13,30 @@ namespace Nokas.CashMgmt.BagRegistration.API.Services
 
     public class FunctionInvoker : IFunctionInvoker
     {
-        private readonly IHttpClientFactory _httpClientFactory;
-        private readonly IConfiguration _configuration;
+        private readonly HttpClient _httpClient;
+        private readonly BagStatusFunctionOptions _options;
         private readonly ILogger<FunctionInvoker> _logger;
 
-        public FunctionInvoker(IHttpClientFactory httpClientFactory, IConfiguration configuration, ILogger<FunctionInvoker> logger)
+        public FunctionInvoker(HttpClient httpClient, IOptions<BagStatusFunctionOptions> options, ILogger<FunctionInvoker> logger)
         {
-            _httpClientFactory = httpClientFactory ?? throw new ArgumentNullException(nameof(httpClientFactory));
-            _configuration = configuration ?? throw new ArgumentNullException(nameof(configuration));
+            _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+            _options = options?.Value ?? throw new ArgumentNullException(nameof(options));
             _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
 
         public async Task<JsonElement?> CallFunctionAsync(string endpointName, string bagNumber, string correlationId, CancellationToken token)
         {
-            var baseUrl = _configuration["BagStatusFunction:BaseUrl"]?.TrimEnd('/');
-            var key = _configuration["BagStatusFunction:FunctionKey"];
-
-            if (string.IsNullOrWhiteSpace(baseUrl) || string.IsNullOrWhiteSpace(key))
-            {
-                _logger.LogWarning("Function base URL or key is not configured.");
-                throw new InvalidOperationException("Azure Function configuration missing.");
-            }
+            var baseUrl = _options.BaseUrl.TrimEnd('/');
+            var key = _options.FunctionKey;
 
             var url = $"{baseUrl}/api/{endpointName}/{Uri.EscapeDataString(bagNumber)}?code={Uri.EscapeDataString(key)}";
 
-            var httpClient = _httpClientFactory.CreateClient();
-            if (!httpClient.DefaultRequestHeaders.Contains("x-correlation-id"))
-                httpClient.DefaultRequestHeaders.Add("x-correlation-id", correlationId);
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.Add("x-correlation-id", correlationId);
 
             try
             {
-                using var resp = await httpClient.GetAsync(url, token);
+                using var resp = await _httpClient.SendAsync(request, token);
 
                 if (resp.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
@@ -52,7 +46,7 @@ namespace Nokas.CashMgmt.BagRegistration.API.Services
 
                 if (!resp.IsSuccessStatusCode)
                 {
-                    var body = await resp.Content.ReadAsStringAsync();
+                    var body = await resp.Content.ReadAsStringAsync(token);
                     _logger.LogWarning("Function {EndpointName} returned non-success ({StatusCode}). Body: {Body}", endpointName, resp.StatusCode, body);
                     return null;
                 }
@@ -62,7 +56,7 @@ namespace Nokas.CashMgmt.BagRegistration.API.Services
             }
             catch (OperationCanceledException)
             {
-                _logger.LogWarning("Function {EndpointName} call cancelled for bag {BagNumber}", endpointName, bagNumber);
+                _logger.LogWarning("Function {EndpointName} call cancelled or timed out for bag {BagNumber}", endpointName, bagNumber);
                 throw;
             }
             catch (Exception ex)

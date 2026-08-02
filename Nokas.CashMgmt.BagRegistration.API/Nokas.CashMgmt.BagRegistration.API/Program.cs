@@ -1,10 +1,12 @@
 using Azure.Identity;
 using Microsoft.ApplicationInsights;
 using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.Azure.Cosmos;
 using Microsoft.Extensions.Options;
 using Nokas.CashMgmt.BagRegistration.API.Configuration;
 using Nokas.CashMgmt.BagRegistration.API.Middleware;
+using Nokas.CashMgmt.BagRegistration.API.Models;
 using Nokas.CashMgmt.BagRegistration.API.Repository;
 using Nokas.CashMgmt.BagRegistration.API.Services;
 using Nokas.CashMgmt.BagRegistration.API.Services.Queue;
@@ -56,13 +58,44 @@ builder.Host.ConfigureAppConfiguration((context, config) =>
 #endregion
 
 #region Configuration Injection
-builder.Services.AddHttpClient();
-builder.Services.AddScoped<IFunctionInvoker, FunctionInvoker>();
-builder.Services.Configure<BlobStorageOptions>(builder.Configuration.GetSection("BlobStorage"));
-builder.Services.Configure<CosmosDbOptions>(builder.Configuration.GetSection("CosmosDb"));
-builder.Services.Configure<AzureAdOptions>(builder.Configuration.GetSection("AzureAd"));
+
+builder.Services.AddOptions<BlobStorageOptions>()
+    .Bind(builder.Configuration.GetSection("BlobStorage"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<CosmosDbOptions>()
+    .Bind(builder.Configuration.GetSection("CosmosDb"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<AzureAdOptions>()
+    .Bind(builder.Configuration.GetSection("AzureAd"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 builder.Services.Configure<KeyVaultOptions>(builder.Configuration.GetSection("KeyVault"));
-builder.Services.Configure<ServiceBusOptions>(builder.Configuration.GetSection("ServiceBus"));
+
+builder.Services.AddOptions<ServiceBusOptions>()
+    .Bind(builder.Configuration.GetSection("ServiceBus"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddOptions<BagStatusFunctionOptions>()
+    .Bind(builder.Configuration.GetSection("BagStatusFunction"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
+builder.Services.AddHttpClient<IFunctionInvoker, FunctionInvoker>(client =>
+{
+    // The resilience handler below owns the timeout budget.
+    client.Timeout = Timeout.InfiniteTimeSpan;
+})
+.AddStandardResilienceHandler(options =>
+{
+    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(8);
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(10);
+});
 
 #endregion
 
@@ -79,6 +112,7 @@ builder.Services.AddSingleton(serviceProvider =>
 #region Core Infrastructure
 
 builder.Services.AddAzureAdJwtAuthentication(builder.Configuration);
+builder.Services.AddApiAuthorizationPolicies();
 builder.Services.AddSwaggerDocumentation(builder.Configuration);
 
 builder.Services.AddControllers(options =>
@@ -88,12 +122,36 @@ builder.Services.AddControllers(options =>
 .AddNewtonsoftJson()
 .AddXmlSerializerFormatters();
 
+builder.Services.Configure<ApiBehaviorOptions>(options =>
+{
+    options.InvalidModelStateResponseFactory = context =>
+    {
+        var correlationId = context.HttpContext.Items["CorrelationId"]?.ToString() ?? "N/A";
+        var errorMessages = context.ModelState.Values
+            .SelectMany(v => v.Errors)
+            .Select(e => e.ErrorMessage)
+            .ToList();
+
+        var error = new ErrorResponse
+        {
+            Title = "Validation Failed",
+            Status = StatusCodes.Status400BadRequest,
+            CorrelationId = correlationId,
+            Exception = string.Join(" | ", errorMessages)
+        };
+
+        return new BadRequestObjectResult(error);
+    };
+});
+
 builder.Services.AddEndpointsApiExplorer();
 
 builder.Services.AddAutoMapper(config =>
 {
     config.AddMaps(AppDomain.CurrentDomain.GetAssemblies());
 });
+
+builder.Services.AddHealthChecks();
 
 #endregion
 
@@ -106,7 +164,9 @@ builder.Services.AddSingleton<IServiceBusSender, ServiceBusSender>();
 // Blob archiving: background queue pattern
 builder.Services.AddSingleton<IPayloadQueue, InMemoryPayloadQueue>();
 builder.Services.AddHostedService<PayloadArchiverHostedService>();
-builder.Services.AddHttpClient();
+
+// Outbox dispatcher: reliably publishes Service Bus events from Cosmos-committed state
+builder.Services.AddHostedService<OutboxDispatcherHostedService>();
 
 #endregion
 
@@ -114,12 +174,13 @@ var app = builder.Build();
 
 #region Middleware
 
-app.UseMiddleware<ExceptionLoggingMiddleware>();
+app.UseHttpsRedirection();
+
 app.UseMiddleware<CorrelationIdMiddleware>();
+app.UseMiddleware<ExceptionLoggingMiddleware>();
 app.UseMiddleware<RequestArchivingMiddleware>();
 
 app.UseStaticFiles();
-app.UseHttpsRedirection();
 app.UseAuthentication();
 app.UseAuthorization();
 
@@ -137,5 +198,6 @@ app.UseSwaggerUI(c =>
 #endregion
 
 app.MapControllers();
+app.MapHealthChecks("/healthz");
 
 app.Run();

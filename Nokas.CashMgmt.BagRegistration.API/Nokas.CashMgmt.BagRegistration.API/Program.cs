@@ -176,6 +176,19 @@ var app = builder.Build();
 
 app.UseHttpsRedirection();
 
+// Surfaces the deployed build on every response so a deployment can be verified
+// from the outside (the App Service itself only accepts traffic from APIM/Front Door).
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Build-Stamp"] = BuildInfo.Stamp;
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
+
 app.UseMiddleware<CorrelationIdMiddleware>();
 app.UseMiddleware<ExceptionLoggingMiddleware>();
 app.UseMiddleware<RequestArchivingMiddleware>();

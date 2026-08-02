@@ -24,7 +24,8 @@ namespace Nokas.CashMgmt.BagRegistration.API.Configuration
                     Description =
 $@"Secure bag registration API.<br/>
 {postmanLinkHtml}<br/><br/>
-To access and try the API methods, click the <strong>Authorize</strong> button below and provide a valid token.",
+To access and try the API methods, click the <strong>Authorize</strong> button below and provide a valid token.<br/><br/>
+<small>Build: {BuildInfo.Stamp}</small>",
                     Contact = new OpenApiContact
                     {
                         Name = "Nokas Support",

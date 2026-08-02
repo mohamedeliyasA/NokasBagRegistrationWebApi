@@ -43,7 +43,8 @@ namespace Nokas.CashMgmt.BagReg.Func
                     {
                         bagNumber,
                         exists,
-                        correlationId
+                        correlationId,
+                        buildStamp = BuildInfo.Stamp
                     });
                     return response;
                 }
@@ -60,7 +61,8 @@ namespace Nokas.CashMgmt.BagReg.Func
                         sqlEx.Number,
                         sqlEx.Procedure,
                         sqlEx.Message,
-                        correlationId
+                        correlationId,
+                        buildStamp = BuildInfo.Stamp
                     });
                     return svcErr;
                 }
@@ -73,7 +75,8 @@ namespace Nokas.CashMgmt.BagReg.Func
                     {
                         message = "Unable to validate bag number",
                         detail = ex.Message,
-                        correlationId
+                        correlationId,
+                        buildStamp = BuildInfo.Stamp
                     });
                     return svcErr;
                 }

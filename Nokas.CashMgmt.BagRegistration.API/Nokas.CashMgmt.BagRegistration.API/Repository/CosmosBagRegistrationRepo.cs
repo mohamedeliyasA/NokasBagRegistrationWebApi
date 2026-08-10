@@ -73,12 +73,38 @@ namespace Nokas.CashMgmt.BagRegistration.API.Repository
                 {
                     if (response.StatusCode == HttpStatusCode.Conflict)
                     {
-                        _logger.LogError("Bag number already exists: {BagNumber}", bagRegistrationRequest.BagRegistration?.BagNumber);
+                        // Logged once, as a Warning, in ExceptionLoggingMiddleware where the
+                        // exception is actually handled — logging it here too would double-count
+                        // this event and at the wrong (Error) severity.
                         throw new DuplicateBagNumberException(bagRegistrationRequest.BagRegistration?.BagNumber ?? "Unknown");
                     }
 
-                    _logger.LogError("Transactional batch failed with status {StatusCode} for BagNumber: {BagNumber}", response.StatusCode, bagRegistrationRequest.BagRegistration?.BagNumber);
-                    throw new CosmosException(response.ErrorMessage, response.StatusCode, 0, response.ActivityId, response.RequestCharge);
+
+                    // A batch reports one status for the whole transaction, so the overall code
+                    // rarely identifies the operation at fault. Log each operation's own result:
+                    // the failing one carries the real status, the others report 424 FailedDependency.
+                    var perOperation = new List<string>();
+                    for (var i = 0; i < response.Count; i++)
+                    {
+                        var op = response[i];
+                        var opName = i == 0 ? "bagDocument" : "outboxMessage";
+                        perOperation.Add($"[{i}] {opName} => {(int)op.StatusCode} {op.StatusCode}");
+                    }
+
+                    _logger.LogError(
+                        "Transactional batch failed with status {StatusCode} for BagNumber: {BagNumber}. " +
+                        "ErrorMessage: {ErrorMessage}. Operations: {Operations}. ActivityId: {ActivityId}",
+                        response.StatusCode,
+                        bagRegistrationRequest.BagRegistration?.BagNumber,
+                        response.ErrorMessage ?? "(none)",
+                        string.Join(" | ", perOperation),
+                        response.ActivityId);
+
+                    var message = string.IsNullOrWhiteSpace(response.ErrorMessage)
+                        ? $"Transactional batch failed with {response.StatusCode}. Operations: {string.Join(" | ", perOperation)}"
+                        : response.ErrorMessage;
+
+                    throw new CosmosException(message, response.StatusCode, 0, response.ActivityId, response.RequestCharge);
                 }
 
                 return response.GetOperationResultAtIndex<BagRegistrationRequest>(0).Resource;
@@ -89,9 +115,11 @@ namespace Nokas.CashMgmt.BagRegistration.API.Repository
             }
             catch (CosmosException ex)
             {
-                _logger.LogError(ex, "Failed to create bag registration for BagNumber: {BagNumber}", bagRegistrationRequest.BagRegistration?.BagNumber);
+                // Logged once, as Critical, in ExceptionLoggingMiddleware where it's actually
+                // handled — see Card 7's note in BagRegistrationController for the same principle.
                 throw;
             }
+
         }
 
         public async Task<BagRegistrationRequest> UpdateBagRegistration(BagRegistrationRequest bagUpdate, CancellationToken cancellationToken = default)

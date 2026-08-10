@@ -22,9 +22,7 @@
     "react-dom": "^19.2.8",
     "react-i18next": "^17.0.11",
     "react-router-dom": "^7.18.2",
-    "recharts": "^3.10.1",
-    "swagger-ui-dist": "^5.32.11",
-    "swagger-ui-react": "^5.32.11"
+    "recharts": "^3.10.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.5",
@@ -32,7 +30,6 @@
     "@types/nprogress": "^0.2.3",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
-    "@types/swagger-ui-react": "^5.18.0",
     "@vitejs/plugin-react": "^6.0.5",
     "autoprefixer": "^10.4.21",
     "eslint": "^9.39.5",

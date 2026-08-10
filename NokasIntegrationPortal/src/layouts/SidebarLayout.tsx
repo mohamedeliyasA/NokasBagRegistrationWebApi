@@ -1,247 +1,268 @@
-import { useState, useEffect } from "react";
-import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
+import { useState, useEffect, useRef } from "react";
+import { Outlet, NavLink, Link, useLocation } from "react-router-dom";
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
 import LogoutButton from "../components/LogoutButton";
 
 type NokasClaims = {
   given_name?: string;
   family_name?: string;
-  [key: string]: any;
+  emails?: string[];
+  [key: string]: unknown;
 };
+
+/**
+ * Dashboard and Business Activity Monitoring are intentionally absent:
+ * both are still placeholders, so they stay unlinked until they carry real data.
+ */
+const navigationLinks = [
+  { to: "/portal/api-guide", label: "API Guide", icon: "📚" },
+];
 
 export default function SidebarLayout() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const location = useLocation();
-  const navigate = useNavigate();
   const { instance } = useMsal();
   const isAuthenticated = useIsAuthenticated();
   const account = instance.getActiveAccount();
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
-  // Only API Guide is visible now
-  const navigationLinks = [
-    { to: "/portal/api-guide", label: "Nokas Bag Registration API Guide", icon: "📚" },
-  ];
+  const claims = account?.idTokenClaims as NokasClaims | undefined;
+  const fullName =
+    claims?.given_name && claims?.family_name
+      ? `${claims.given_name} ${claims.family_name}`
+      : "Welcome";
+  const initials =
+    claims?.given_name && claims?.family_name
+      ? `${claims.given_name[0]}${claims.family_name[0]}`.toUpperCase()
+      : "N";
 
-  const handleLogoClick = () => {
-    // Send authenticated users to the API Guide as primary entry
-    navigate(isAuthenticated ? "/portal/api-guide" : "/");
-  };
+  // /portal now redirects to the guide at the route level (see App.tsx), so no
+  // effect-based redirect is needed here.
 
-  // Redirect old /portal bookmarks to /portal/api-guide
+  // Close the mobile drawer on navigation.
   useEffect(() => {
-    if (isAuthenticated && location.pathname === "/portal") {
-      navigate("/portal/api-guide", { replace: true });
+    setMobileSidebarOpen(false);
+  }, [location.pathname]);
+
+  // Close the profile menu on outside click or Escape - a mouseleave alone is
+  // easy to miss and leaves the menu stuck open.
+  useEffect(() => {
+    if (!showMenu) return;
+
+    function onPointerDown(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setShowMenu(false);
+      }
     }
-  }, [isAuthenticated, location.pathname, navigate]);
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") setShowMenu(false);
+    }
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("keydown", onKeyDown);
+    };
+  }, [showMenu]);
+
+  const navLinkClass = ({ isActive }: { isActive: boolean }) =>
+    [
+      "flex items-center gap-3 rounded-lg p-2.5 transition",
+      isActive
+        ? "bg-brand-50 font-semibold text-brand-800 ring-1 ring-inset ring-brand-200"
+        : "text-gray-600 hover:bg-gray-100 hover:text-brand-800",
+    ].join(" ");
 
   return (
-    <div className="flex flex-col min-h-screen bg-gray-100">
-      {/* Mobile Top Bar */}
+    <div className="flex min-h-screen flex-col bg-gray-50">
+      {/* ---------------- Mobile top bar ---------------- */}
       {isAuthenticated && (
-        <div className="md:hidden flex items-center justify-between w-full bg-white border-b p-4">
+        <div className="flex w-full items-center justify-between border-b border-gray-200 bg-white px-4 py-3 md:hidden">
           <button
-            aria-label="Toggle sidebar"
+            aria-label="Open navigation"
             onClick={() => setMobileSidebarOpen(true)}
-            className="text-xl"
+            className="rounded p-1 text-gray-700 focus:outline-none focus:ring-2 focus:ring-brand-500"
           >
-            ☰
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+              <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+            </svg>
           </button>
-          <span className="font-semibold text-sm">NOKAS Portal</span>
+          <span className="text-sm font-semibold text-brand-800">NOKAS Portal</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-full bg-brand-800 text-xs font-bold text-white">
+            {initials}
+          </span>
         </div>
       )}
 
       <div className="flex flex-1">
-        {/* Sidebar for Desktop */}
+        {/* ---------------- Desktop sidebar ---------------- */}
         <aside
-          className={`hidden md:flex flex-col transition-all duration-500 ${
+          className={`hidden flex-col border-r border-gray-200 bg-white transition-all duration-300 md:flex ${
             collapsed ? "w-20" : "w-64"
-          } bg-white text-[#014737] border-r border-gray-200`}
+          }`}
         >
-          <div className="flex items-center gap-2 p-4">
+          <div className="flex items-center gap-2 border-b border-gray-100 p-4">
             <button
-              aria-label="Toggle sidebar"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               onClick={() => setCollapsed(!collapsed)}
-              className="text-xl text-[#014737] focus:outline-none"
+              className="rounded p-1 text-gray-500 transition hover:bg-gray-100 hover:text-brand-800 focus:outline-none focus:ring-2 focus:ring-brand-500"
             >
-              ☰
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+              </svg>
             </button>
-            <button
-              onClick={handleLogoClick}
-              className="flex items-center focus:outline-none"
+
+            {/*
+              Light background here, so the full-colour logo is used.
+              When collapsed there is no room for the wordmark, so the square
+              mark stands in for it.
+            */}
+            <Link
+              to="/portal/api-guide"
+              className="flex min-w-0 items-center focus:outline-none"
+              aria-label="NOKAS — API guide"
             >
-              <img src="/logo.png" alt="Sidebar Logo" className="h-6" />
-              {!collapsed && (
-                <div className="ml-2 leading-tight text-left">
-                  <div className="text-sm font-bold text-[#014737]">NOKAS</div>
-                  <div className="text-xs text-gray-500 -mt-0.5">
-                    Payment solutions
-                  </div>
-                </div>
+              {collapsed ? (
+                <img src="/nokas-mark.svg" alt="NOKAS" className="h-7 w-7 rounded-md" />
+              ) : (
+                <img
+                  src="/Nokas_Digital_Logo.png"
+                  alt="NOKAS"
+                  width={906}
+                  height={136}
+                  className="h-6 w-auto"
+                />
               )}
-            </button>
+            </Link>
           </div>
 
-          <nav className="flex flex-col p-4 gap-4">
+          <nav className="flex flex-col gap-1 p-3">
             {navigationLinks.map((link) => (
-              <SidebarLink
+              <NavLink
                 key={link.to}
                 to={link.to}
-                label={link.label}
-                icon={link.icon}
-                collapsed={collapsed}
-              />
+                className={navLinkClass}
+                title={collapsed ? link.label : undefined}
+              >
+                <span className="text-lg leading-none">{link.icon}</span>
+                {!collapsed && <span className="text-sm">{link.label}</span>}
+              </NavLink>
             ))}
           </nav>
 
-          {isAuthenticated && account?.idTokenClaims && (
-            <div className="p-4 mt-auto flex items-center gap-2 border-t border-gray-200">
-              <img
-                src="/user-avatar.png"
-                alt="User Avatar"
-                className="h-8 w-8 rounded-full border border-gray-300"
-              />
-              {!collapsed &&
-                (() => {
-                  const claims = account.idTokenClaims as NokasClaims;
-                  const fullName =
-                    claims?.given_name && claims?.family_name
-                      ? `${claims.given_name} ${claims.family_name}`
-                      : "Welcome";
-                  return (
-                    <div className="text-sm text-gray-800 leading-tight">
-                      {fullName}
-                    </div>
-                  );
-                })()}
+          {isAuthenticated && (
+            <div className="mt-auto flex items-center gap-3 border-t border-gray-200 p-4">
+              <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-brand-800 text-xs font-bold text-white">
+                {initials}
+              </span>
+              {!collapsed && (
+                <span className="min-w-0 text-sm leading-tight text-gray-800">
+                  <span className="block truncate font-medium">{fullName}</span>
+                  {claims?.emails?.[0] && (
+                    <span className="block truncate text-xs text-gray-500">{claims.emails[0]}</span>
+                  )}
+                </span>
+              )}
             </div>
           )}
         </aside>
 
-        {/* Mobile Sidebar Overlay */}
+        {/* ---------------- Mobile drawer ---------------- */}
         {mobileSidebarOpen && (
           <div
-            className="fixed inset-0 bg-black bg-opacity-50 z-40 md:hidden"
+            className="fixed inset-0 z-40 bg-black/50 md:hidden"
             onClick={() => setMobileSidebarOpen(false)}
-          ></div>
+            aria-hidden="true"
+          />
         )}
 
-        {/* Mobile Sidebar Panel */}
         <aside
-          className={`fixed top-0 left-0 h-full bg-white w-64 z-50 transform transition-transform duration-300 md:hidden ${
+          className={`fixed left-0 top-0 z-50 h-full w-64 transform bg-white shadow-xl transition-transform duration-300 md:hidden ${
             mobileSidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
-          <div className="flex items-center justify-between p-4 border-b">
-            <span className="font-bold text-sm">Navigation</span>
+          <div className="flex items-center justify-between border-b border-gray-200 p-4">
+            <span className="text-sm font-bold text-brand-800">Navigation</span>
             <button
-              aria-label="Close"
+              aria-label="Close navigation"
               onClick={() => setMobileSidebarOpen(false)}
-              className="text-xl"
+              className="rounded p-1 text-gray-500 hover:bg-gray-100"
             >
-              ✕
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-5 w-5">
+                <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+              </svg>
             </button>
           </div>
-          <nav className="flex flex-col p-4 gap-4">
+
+          <nav className="flex flex-col gap-1 p-3">
             {navigationLinks.map((link) => (
-              <Link
-                key={link.to}
-                to={link.to}
-                onClick={() => setMobileSidebarOpen(false)}
-                className={`flex items-center gap-3 p-2 rounded transition ${
-                  location.pathname === link.to
-                    ? "bg-gray-200 font-semibold"
-                    : "hover:bg-gray-100"
-                }`}
-              >
-                <span className="text-xl">{link.icon}</span>
-                <span className="text-sm font-medium">{link.label}</span>
-              </Link>
+              <NavLink key={link.to} to={link.to} className={navLinkClass}>
+                <span className="text-lg leading-none">{link.icon}</span>
+                <span className="text-sm">{link.label}</span>
+              </NavLink>
             ))}
+            <NavLink to="/portal/profile" className={navLinkClass}>
+              <span className="text-lg leading-none">👤</span>
+              <span className="text-sm">Profile</span>
+            </NavLink>
           </nav>
         </aside>
 
-        {/* Main Content Area */}
-        <main className="flex-1 p-6 overflow-auto relative">
+        {/* ---------------- Main ---------------- */}
+        <div className="flex min-w-0 flex-1 flex-col">
           {isAuthenticated && (
-            <div className="flex justify-end items-center gap-3 mb-4">
-              {(() => {
-                const claims = account?.idTokenClaims as NokasClaims | undefined;
-                const fullName =
-                  claims?.given_name && claims?.family_name
-                    ? `${claims.given_name} ${claims.family_name}`
-                    : "Welcome";
+            <header className="hidden items-center justify-end gap-3 border-b border-gray-200 bg-white px-6 py-3 md:flex">
+              <span className="text-sm font-medium text-gray-700">{fullName}</span>
 
-                return (
-                  <span className="hidden md:inline text-sm font-medium text-gray-700">
-                    {fullName}
-                  </span>
-                );
-              })()}
-              <div className="relative">
+              <div className="relative" ref={menuRef}>
                 <button
-                  aria-label="Toggle profile menu"
+                  aria-label="Account menu"
+                  aria-expanded={showMenu}
+                  aria-haspopup="menu"
                   onClick={() => setShowMenu((prev) => !prev)}
-                  className="flex items-center gap-2 focus:outline-none"
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-800 text-xs font-bold text-white transition hover:bg-brand-700 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:ring-offset-2"
                 >
-                  <img
-                    src="/user-avatar.png"
-                    alt="User Avatar"
-                    className="h-8 w-8 rounded-full border border-gray-300 cursor-pointer"
-                  />
+                  {initials}
                 </button>
+
                 {showMenu && (
                   <div
-                    className="absolute right-0 mt-2 w-40 bg-white text-black rounded shadow-lg z-50"
-                    onMouseLeave={() => setShowMenu(false)}
+                    role="menu"
+                    className="absolute right-0 z-50 mt-2 w-48 overflow-hidden rounded-lg border border-gray-200 bg-white shadow-lg"
                   >
+                    <div className="border-b border-gray-100 px-4 py-2.5">
+                      <p className="truncate text-sm font-medium text-gray-900">{fullName}</p>
+                      {claims?.emails?.[0] && (
+                        <p className="truncate text-xs text-gray-500">{claims.emails[0]}</p>
+                      )}
+                    </div>
                     <Link
                       to="/portal/profile"
                       onClick={() => setShowMenu(false)}
-                      className="block px-4 py-2 text-sm hover:bg-gray-100 transition"
+                      className="block px-4 py-2.5 text-sm text-gray-700 transition hover:bg-gray-50"
+                      role="menuitem"
                     >
                       Profile
                     </Link>
-                    <div className="border-t"></div>
-                    <div className="px-4 py-2">
+                    <div className="border-t border-gray-100 px-4 py-2.5">
                       <LogoutButton />
                     </div>
                   </div>
                 )}
               </div>
-            </div>
+            </header>
           )}
-          <Outlet />
-        </main>
+
+          <main className="min-w-0 flex-1 overflow-auto p-4 sm:p-6">
+            <div className="animate-fade-in">
+              <Outlet />
+            </div>
+          </main>
+        </div>
       </div>
     </div>
-  );
-}
-
-function SidebarLink({
-  to,
-  label,
-  icon,
-  collapsed,
-}: {
-  to: string;
-  label: string;
-  icon: string;
-  collapsed: boolean;
-}) {
-  const location = useLocation();
-  const isActive = location.pathname === to;
-
-  return (
-    <Link
-      to={to}
-      className={`flex items-center gap-3 p-2 rounded transition ${
-        isActive ? "bg-gray-200 font-semibold" : "hover:bg-gray-100"
-      }`}
-    >
-      <span className="text-xl">{icon}</span>
-      {!collapsed && <span className="text-sm font-medium">{label}</span>}
-    </Link>
   );
 }

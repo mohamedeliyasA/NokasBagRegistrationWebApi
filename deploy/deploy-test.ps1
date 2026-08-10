@@ -28,7 +28,11 @@ param(
     [switch]$SkipVerify
 )
 
-$ErrorActionPreference = 'Stop'
+# NOTE: deliberately NOT 'Stop'. Native tools (npm, dotnet, az) routinely write
+# warnings to stderr, and in Windows PowerShell 5.1 that surfaces as a terminating
+# NativeCommandError even on a successful run. Every native call below is checked
+# explicitly via $LASTEXITCODE instead, which is the reliable signal.
+$ErrorActionPreference = 'Continue'
 $env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL = 'no'
 
 # ---- TEST environment constants -------------------------------------
@@ -125,8 +129,13 @@ function Deploy-Func {
     Start-Sleep -Seconds 30
 
     # Pull the function key from Azure rather than hardcoding it.
-    $key = az functionapp function keys list --resource-group $ResourceGroup --name $FuncApp `
-             --function-name ValidateBagNumber --query "'api-call-key'" -o tsv
+    # NOTE: do NOT use --query "'api-call-key'" here. In JMESPath a single-quoted
+    # token is a string LITERAL, so that returns the text "api-call-key" instead
+    # of the key value, and verification then fails with a bogus 401.
+    $keysJson = az functionapp function keys list --resource-group $ResourceGroup --name $FuncApp `
+                  --function-name ValidateBagNumber -o json | ConvertFrom-Json
+    $key = $keysJson.'api-call-key'
+    if ([string]::IsNullOrWhiteSpace($key)) { $key = $keysJson.'default' }
     if ([string]::IsNullOrWhiteSpace($key)) {
         Warn 'Could not read the function key; skipping verification.'
         return
@@ -172,9 +181,12 @@ function Deploy-Portal {
     Ok "Package: $zip ($([math]::Round((Get-Item $zip).Length / 1MB, 1)) MB)"
 
     Step "PORTAL - deploying to $PortalApp"
-    az webapp deploy --resource-group $ResourceGroup --name $PortalApp --src-path $zip --type zip
+    # --clean wipes wwwroot first. Without it OneDeploy merges, so files deleted
+    # from the build (old logos, renamed bundles) stay served forever. Safe here
+    # because dist/ is a complete, self-contained site including web.config.
+    az webapp deploy --resource-group $ResourceGroup --name $PortalApp --src-path $zip --type zip --clean true
     if ($LASTEXITCODE -ne 0) { throw 'Portal deploy failed.' }
-    Ok 'Deployed.'
+    Ok 'Deployed (target cleaned).'
 
     if ($SkipVerify) { return }
 

@@ -1,4 +1,6 @@
-﻿namespace Nokas.CashMgmt.BagRegistration.API.Middleware
+﻿using Serilog.Context;
+
+namespace Nokas.CashMgmt.BagRegistration.API.Middleware
 {
     public class CorrelationIdMiddleware
     {
@@ -30,8 +32,14 @@
             // Set the correlation ID in the current request context
             context.Items["CorrelationId"] = correlationId;
 
-            // Continue the request pipeline
-            await _next(context);
+            // Push onto Serilog's LogContext so every log event for this request carries
+            // CorrelationId as a structured property automatically (both Seq and Application
+            // Insights read off the same Serilog pipeline) — not just the call sites that
+            // happen to interpolate it into their message template.
+            using (LogContext.PushProperty("CorrelationId", correlationId))
+            {
+                await _next(context);
+            }
         }
     }
 }

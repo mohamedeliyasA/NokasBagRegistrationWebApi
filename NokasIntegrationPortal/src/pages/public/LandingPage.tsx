@@ -47,6 +47,12 @@ export default function LandingPage() {
 
   return (
     <PublicLayout>
+      {/*
+        PublicLayout used to apply this container to every page. The other pages
+        now render full-bleed and manage their own width, so the original home
+        page keeps its previous look by re-applying that container here.
+      */}
+      <div className="mx-auto max-w-5xl px-6 py-12">
       {/* Hero Section */}
       <div className="relative h-[50vh] w-full overflow-hidden">
         <video
@@ -70,7 +76,7 @@ export default function LandingPage() {
           </p>
           <button
             onClick={handleSignIn}
-            className="bg-green-400 hover:bg-green-300 text-black font-semibold px-6 py-2 rounded-full transition"
+            className="bg-brand-400 hover:bg-brand-300 text-brand-900 font-semibold px-6 py-2 rounded-full transition"
           >
             Launch Portal
           </button>
@@ -79,14 +85,14 @@ export default function LandingPage() {
 
       {/* Introduction */}
       <section className="bg-white py-12 px-6 text-center">
-        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-[#013c2f]">
+        <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold mb-4 text-brand-800">
           Welcome to the NOKAS Integration Portal
         </h1>
         <p className="text-gray-700 text-lg max-w-3xl mx-auto">
-          Seamlessly access, analyze, and manage your financial integrations
-          from a single, intuitive dashboard. Empowering both internal teams
-          and external partners with complete visibility into bag registration,
-          order tracking, and actionable insights.
+          Seamlessly access and manage your cash handling integrations from a
+          single, intuitive portal. Empowering both internal teams and external
+          partners with secure bag registration, counting results, and complete
+          API documentation.
         </p>
       </section>
 
@@ -96,12 +102,11 @@ export default function LandingPage() {
           <h2 className="text-3xl font-bold mb-6">Key Features</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             <div className="bg-gray-100 p-6 rounded shadow">
-              <h3 className="text-xl font-semibold mb-2">Real-time Monitoring</h3>
-              <p>Track integration events and bag registrations as they happen.</p>
-            </div>
-            <div className="bg-gray-100 p-6 rounded shadow">
-              <h3 className="text-xl font-semibold mb-2">Business Workflows</h3>
-              <p>Visualize and manage your end-to-end processes efficiently.</p>
+              <h3 className="text-xl font-semibold mb-2">Bag Registration</h3>
+              <p className="text-sm text-gray-700">
+                Declare cash bags through a secure REST API before pickup, with
+                duplicate protection and end-to-end traceability.
+              </p>
             </div>
             <div className="bg-gray-100 p-6 rounded shadow">
               <h3 className="text-xl font-semibold mb-2">API Documentation</h3>
@@ -110,9 +115,22 @@ export default function LandingPage() {
                 including endpoints, request formats, and examples.
               </p>
             </div>
+            <div className="bg-gray-100 p-6 rounded shadow">
+              <div className="mb-2 flex items-center justify-center gap-2">
+                <h3 className="text-xl font-semibold">Order Tracking</h3>
+                <span className="rounded-full bg-brand-100 px-2 py-0.5 text-xs font-semibold text-brand-800">
+                  Coming soon
+                </span>
+              </div>
+              <p className="text-sm text-gray-700">
+                Follow every bag from registration through pickup to counted
+                result, directly in the portal.
+              </p>
+            </div>
           </div>
         </div>
       </section>
+      </div>
     </PublicLayout>
   );
 }

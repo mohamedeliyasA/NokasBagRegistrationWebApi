@@ -1,27 +1,84 @@
-import CodeBlock from "../../../components/ui/CodeBlock";
-import SectionLayout from "../../../components/ui/SectionLayout";
+import { useEffect } from "react";
+import { Badge, CodeBlock, EnvUrlList, JumpNav, MethodBadge, PageHeader, SectionHeading, type HttpMethod } from "@/components/ui";
+import { API_ENVIRONMENTS, TEST_ENV } from "@/config/environments";
+
+/** Worked examples use the Test host; the base URLs for both environments are listed in the header. */
+const BASE = TEST_ENV.baseUrl;
+
+const jumpItems = [
+  { id: "register", label: "Register" },
+  { id: "retrieve", label: "Retrieve" },
+  { id: "cancel", label: "Cancel" },
+  { id: "counting", label: "Counting result" },
+];
+
+function UseCase({
+  id,
+  method,
+  path,
+  title,
+  summary,
+  children,
+}: {
+  id: string;
+  method: HttpMethod;
+  path: string;
+  title: string;
+  summary: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-4">
+      <SectionHeading id={id}>{title}</SectionHeading>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <MethodBadge method={method} />
+        <code className="break-all font-mono text-sm font-semibold text-gray-900">{path}</code>
+      </div>
+
+      <p className="text-sm leading-relaxed text-gray-600">{summary}</p>
+
+      {children}
+    </div>
+  );
+}
 
 export default function UseCasesSection() {
-  return (
-    <SectionLayout
-      id="use-cases"
-      title="Use Cases with Sample Requests & Responses"
-      subtitle="Practical examples demonstrating how to use the API endpoints effectively"
-    >
-      <div className="space-y-10 text-sm text-gray-800">
-        {/* REGISTRATION POST */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">
-            1. Registration (POST)
-          </h3>
-          <p>
-            Used to register a new bag in the system. Requires a valid customer reference number and registration type.
-          </p>
+  useEffect(() => {
+    document.title = "API Guide | Use Cases";
+  }, []);
 
-          <h4 className="mt-3 font-semibold text-[#014737]">Sample Request:</h4>
-          <CodeBlock
-            language="json"
-            code={`{
+  return (
+    <section className="space-y-10">
+      <PageHeader
+        eyebrow="API Guide"
+        title="Use cases & worked examples"
+        lead="End-to-end examples showing a bag through its whole life — registered, retrieved, cancelled, and finally counted."
+      >
+        <div className="rounded-lg border border-accent-200 bg-accent-50 p-3">
+          <EnvUrlList
+            title="Base URL"
+            entries={API_ENVIRONMENTS.map((env) => ({ label: env.label, url: env.baseUrl }))}
+          />
+          <p className="mt-2 text-xs text-accent-900/80">
+            The worked examples below use the <strong>Test</strong> host. Swap the base URL for the
+            production one when you go live.
+          </p>
+        </div>
+        <JumpNav items={jumpItems} />
+      </PageHeader>
+
+      {/* ---------------- 1. Register ---------------- */}
+      <UseCase
+        id="register"
+        method="POST"
+        path="/api/cash-mgmt/bag-registration"
+        title="1. Register a bag"
+        summary="Registers a new bag. Requires a valid customer reference number and registration type."
+      >
+        <CodeBlock
+          label="Request body"
+          code={`{
   "bagRegistration": {
     "customerRefNumber": "5790002334764",
     "registrationType": "NOK",
@@ -43,12 +100,10 @@ export default function UseCasesSection() {
     }
   }
 }`}
-          />
-
-          <h4 className="mt-3 font-semibold text-[#014737]">Sample Response:</h4>
-          <CodeBlock
-            language="json"
-            code={`{
+        />
+        <CodeBlock
+          label="201 Created"
+          code={`{
   "customerRefNumber": "5790002334764",
   "bagNumber": "34567895",
   "description": "Bag Registered Successfully",
@@ -56,53 +111,44 @@ export default function UseCasesSection() {
   "bagLifecycleId": "02877729-a00f-4882-aa46-67bef0ee0182",
   "requestCorrelationId": "123f647-b06f-4725-9ec7-8e6dfce18fbG"
 }`}
-          />
-        </div>
+        />
+      </UseCase>
 
-        {/* REGISTRATION GET */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">
-            2. Registration (GET)
-          </h3>
-          <p>
-            Retrieves the status of a previously registered bag.
-          </p>
-          <CodeBlock
-            language="bash"
-            code={`GET https://api-test.nokas.com/api/cash-mgmt/bag-countingresult/34567895`}
-          />
-          <CodeBlock
-            language="json"
-            code={`{
-  "customerRefNumber": "5790002334764",
-  "bagNumber": "34567895",
-  "description": "Bag not yet counted.",
-  "bagStatus": "registered",
-  "bagLifecycleId": "02877729-a00f-4882-aa46-67bef0ee0182",
-  "requestCorrelationId": "345ff647-b06f-4725-9ec7-8e6dfce18fbf",
-  "declaredAmount": 2500.0,
-  "actualCountedAmount": null,
-  "deviationAmount": null,
-  "countedDate": null
+      {/* ---------------- 2. Retrieve ---------------- */}
+      <UseCase
+        id="retrieve"
+        method="GET"
+        path="/api/cash-mgmt/bag-registration/{bagNumber}"
+        title="2. Retrieve a registration"
+        summary="Fetches a previously registered bag and its current registration status."
+      >
+        <CodeBlock label="Request" code={`GET ${BASE}/bag-registration/34567895`} />
+        <CodeBlock
+          label="200 OK"
+          code={`{
+  "bagRegistration": {
+    "customerRefNumber": "5790002334764",
+    "registrationType": "NOK",
+    "bagNumber": "34567895",
+    "registrationDate": "2025-08-14",
+    "totalOrderAmount": "2500"
+  }
 }`}
-          />
-        </div>
+        />
+      </UseCase>
 
-        {/* DELETE */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">
-            3. Bag Registration (DELETE)
-          </h3>
-          <p>
-            Cancels a registered bag before it’s processed for pickup or counting.
-          </p>
-          <CodeBlock
-            language="bash"
-            code={`DELETE https://api-test.nokas.com/api/cash-mgmt/bag-registration/34567895`}
-          />
-          <CodeBlock
-            language="json"
-            code={`{
+      {/* ---------------- 3. Cancel ---------------- */}
+      <UseCase
+        id="cancel"
+        method="DELETE"
+        path="/api/cash-mgmt/bag-registration/{bagNumber}"
+        title="3. Cancel a registration"
+        summary="Cancels a registered bag before it has been collected for pickup or counting."
+      >
+        <CodeBlock label="Request" code={`DELETE ${BASE}/bag-registration/34567895`} />
+        <CodeBlock
+          label="200 OK"
+          code={`{
   "customerRefNumber": "5790002334764",
   "bagNumber": "34567895",
   "description": "Bag Cancelled Successfully.",
@@ -110,26 +156,23 @@ export default function UseCasesSection() {
   "bagLifecycleId": "02877729-a00f-4882-aa46-67bef0ee0182",
   "requestCorrelationId": "456ff647-b06f-4725-9ec7-8e6dfce18fbf"
 }`}
-          />
-        </div>
+        />
+      </UseCase>
 
-        {/* COUNTING RESULTS */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">
-            4. Counting Result (GET)
-          </h3>
-          <p>
-            Retrieves the counting result for a given bag. The response varies depending on the bag’s current status.
-          </p>
-
-          <h4 className="mt-4 font-semibold text-[#014737]">Case 1: Registered (Not Yet Counted)</h4>
-          <CodeBlock
-            language="bash"
-            code={`GET https://api-test.nokas.com/api/cash-mgmt/bag-countingresult/34567897`}
-          />
-          <CodeBlock
-            language="json"
-            code={`{
+      {/* ---------------- 4. Counting result ---------------- */}
+      <UseCase
+        id="counting"
+        method="GET"
+        path="/api/cash-mgmt/bag-countingresult/{bagNumber}"
+        title="4. Retrieve the counting result"
+        summary="Returns the counting outcome. The shape of the response depends on how far the bag has progressed."
+      >
+        <div className="space-y-5">
+          <div>
+            <Badge tone="gray">Case 1 — registered, not yet counted</Badge>
+            <CodeBlock
+              label="200 OK"
+              code={`{
   "customerRefNumber": "5790002334764",
   "bagNumber": "34567897",
   "description": "Bag not yet counted.",
@@ -141,16 +184,14 @@ export default function UseCasesSection() {
   "deviationAmount": null,
   "countedDate": null
 }`}
-          />
+            />
+          </div>
 
-          <h4 className="mt-4 font-semibold text-[#014737]">Case 2: Picked-Up</h4>
-          <CodeBlock
-            language="bash"
-            code={`GET https://api-test.nokas.com/api/cash-mgmt/bag-countingresult/34567896`}
-          />
-          <CodeBlock
-            language="json"
-            code={`{
+          <div>
+            <Badge tone="accent">Case 2 — picked up</Badge>
+            <CodeBlock
+              label="200 OK"
+              code={`{
   "customerRefNumber": "5790002334764",
   "bagNumber": "34567896",
   "description": "Bag not yet counted.",
@@ -162,12 +203,14 @@ export default function UseCasesSection() {
   "deviationAmount": null,
   "countedDate": null
 }`}
-          />
+            />
+          </div>
 
-          <h4 className="mt-4 font-semibold text-[#014737]">Case 3: Counted (Matched)</h4>
-          <CodeBlock
-            language="json"
-            code={`{
+          <div>
+            <Badge tone="green">Case 3 — counted, amounts match</Badge>
+            <CodeBlock
+              label="200 OK"
+              code={`{
   "customerRefNumber": "5790002334764",
   "bagNumber": "34567896",
   "description": "Bag counting result retrieved successfully.",
@@ -179,12 +222,14 @@ export default function UseCasesSection() {
   "deviationAmount": 0.0,
   "countedDate": "2025-11-11T12:31:00"
 }`}
-          />
+            />
+          </div>
 
-          <h4 className="mt-4 font-semibold text-[#014737]">Case 4: Counted (With Deviation)</h4>
-          <CodeBlock
-            language="json"
-            code={`{
+          <div>
+            <Badge tone="amber">Case 4 — counted, with a deviation</Badge>
+            <CodeBlock
+              label="200 OK"
+              code={`{
   "customerRefNumber": "5790002334764",
   "bagNumber": "34567896",
   "description": "Bag counting result retrieved successfully.",
@@ -196,9 +241,10 @@ export default function UseCasesSection() {
   "deviationAmount": -500.0,
   "countedDate": "2025-11-11T12:32:00"
 }`}
-          />
+            />
+          </div>
         </div>
-      </div>
-    </SectionLayout>
+      </UseCase>
+    </section>
   );
 }

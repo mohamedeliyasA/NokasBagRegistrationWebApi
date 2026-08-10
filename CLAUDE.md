@@ -2,6 +2,38 @@
 
 Guidance for Claude Code when working in this solution. Read this fully before making changes. This file merges the platform-wide context with the Bag Counting Result API extension — they're one system, one repo family, one set of conventions.
 
+> ## ⚡ FULL REWRITE PROGRAM — decided 2026-08-08, read this first
+>
+> The owner has decided to **rewrite the registration API + Function from scratch** (new projects, same repo, same Azure resources) and build the counting-result surface on the new foundations. Two design-lock documents govern this work and **override anything below that conflicts with them**:
+>
+> - `REGISTRATION_REWRITE_DESIGN.md` — scope, frozen contracts, deliberate behavior changes, solution structure, patterns, testing, cutover.
+> - `COUNTING_RESULT_DESIGN.md` — phase-1 (NOK-only) counting-result design; explicitly amends `bag-counting-result-api-architecture.md` (see its §2 deltas: `bagLifecycleId` dropped, `currencyType` constant `"NOK"`, mapping stays on-prem, StatusTracking index approved, trigger caveat accepted).
+>
+> Reference material provided by the owner (source of truth for downstream behavior): `ExistingFullFlow.md` (end-to-end business flow), `SQL/` (Nattsafe/CacheDB DDL + procs incl. `api_CancelBagIfRegistered`, `mwPutRegistrationV1`, `SaveRegistrationV2`, `trigStatusId`), `BizTalk/BagRegistration.xsd` (frozen Service Bus message contract — API delivers the `bagRegistration` JSON body only).
+>
+> Key facts established 2026-08-08 (correcting older statements in this file):
+> - **`api_CancelBagIfRegistered` is MUTATING** — it performs the Nattsafe cancellation itself (status→10 when status∈{0,1,2} and not transport-fetched) and returns the *pre-cancel* status. The API's DELETE "status check" is actually "attempt cancel + interpret result". What BizTalk does with the `deleteBagRegistration` message afterwards (likely CacheDB bookkeeping) is out of scope by owner decision.
+> - **The Service Bus message never carried `bagLifecycleId`** (older text below claims otherwise) — and per owner decision it won't; it's dropped from the phase-1 counting-result contract.
+> - **NOK-only scope everywhere in phase 1**: the API will return 400 for `registrationType=Valuta` (deliberate change, model fields retained for a future phase); counting results phase 1 is NOK-only.
+> - **`NokasExternalCustomerMapping` stays on-prem** — BizTalk resolves the mapping at message-processing time; the old "migrate to Cosmos?" question is closed.
+> - **StatusTracking**: 15,047,336 rows, heap, no indexes, no purge; owner approved creating `IX_StatusTracking_dtmDate (dtmDate) INCLUDE (intId, intStatus)`. No other Nattsafe *table* changes allowed (new procs/indexes OK, columns/schema NO).
+> - Bag numbers **cannot be reused via the API ever** — the validate check against `NokasMwCacheDbV3.dbo.Registration` is global and permanent; recycling risk applies only to pre-API/Portal-era rows.
+> - Amounts on the wire are in **øre** (downstream procs divide by 100); preserved as-is, do not "fix".
+>
+> **Working style (owner preference, applies to all implementation):** changes are delivered as **cards** — what/why/file/current code/new code/concept-to-learn — and the owner applies every edit by hand to learn ASP.NET Core; Claude verifies afterwards by build + test, and reviews the applied diff (cards sometimes get missed — check, don't assume). Design docs contain design only, no code/cards.
+>
+> **Current-code state (interim fixes applied to the OLD codebase this session, all verified):** Tier-1/Tier-2 logging cards 1–10 (single-log-per-outcome; Warning for negative business outcomes incl. DELETE branches + model-validation 400s; `LogCritical` for Function-unreachable, generic Cosmos failures, unhandled 500s, outbox dispatch failures; duplicate-bag double-logging removed), `CorrelationIdMiddleware` pushes `CorrelationId` into Serilog `LogContext`, Seq dev sink added (`appsettings.development.json` + `Serilog.Sinks.Seq`; Seq runs in Docker at `http://localhost:5341`, WSL2 capped via `.wslconfig`). **Pending, superseded by the rewrite unless needed sooner:** ClientId `LogContext` middleware (cards 11–12, placement: between AuthN and AuthZ), AI-sink `restrictedToMinimumLevel: Warning`, Azure Monitor alert rule + action group for severity-4 email, two remaining double-log spots in `CosmosBagRegistrationRepo` (`GetBagByNumberForClientAsync`, `UpdateBagRegistrationWithOutboxAsync`), `deploy_guide.md` for prod (Front Door + APIM Basic + shared App Service Plan; owner to supply traffic estimate for plan sizing).
+>
+> **v2 rewrite progress (2026-08-09):** Batch 01 (POST vertical slice — `IMPLEMENTATION_CARDS_01_POST.md`, cards 1–37) implemented in new projects under `src/`/`tests/` (`Nokas.CashMgmt.Shared`, `Nokas.CashMgmt.BagRegistration.Api`, `Nokas.CashMgmt.BagRegistration.Func`, naming per §5.1 of the design doc), deployed to new TEST infrastructure (`api-nokas-bagreg-v2`, `func-test-nokas-bagreg-v2`, Cosmos container `bagreg-v2` — all tagged `version=v2`, reusing the existing `rg-nokasapi-cashmgmt` resource group, `as-test-integrationops` App Service Plan, Cosmos account, Key Vault, Blob storage, Service Bus, App Insights per the standing no-new-services rule), and **verified end-to-end with a real 201** (validate Function call → Cosmos transactional batch → outbox). Deploy scripts: `deploy/provision-v2-infrastructure.ps1` (infra, RBAC, Key Vault) — idempotent, safe to re-run, all fixes below already folded in.
+>
+> **Real bugs found and fixed while getting to that first 201 — all instructive, don't reintroduce:**
+> - **Cosmos unique-key policy casing must match System.Text.Json's camelCase exactly.** The container was first created with `/BagRegistration/BagNumber` (PascalCase, copied from the old Newtonsoft-based codebase) but the new codebase serializes camelCase (`/bagRegistration/bagNumber`). Consequence: *neither* the bag document nor the outbox message actually had a property at the PascalCase path, so Cosmos treated both as "missing" it — and per Cosmos's own rule (a document missing a unique-key path shares one "undefined" value per partition), they collided **with each other**, on the very first transaction ever, regardless of the actual bag number. Symptom was a misleading `ERR_DUPLICATE_BAG` 409 for *every* write, even against an empty container — cost significant time to diagnose because the response shape is identical to a genuine duplicate. Fixed by deleting and recreating the (still-empty) container with the correct camelCase path. **Any time a Cosmos indexing/unique-key/composite-index policy is written by hand, verify its path casing against the actual `[JsonPropertyName(...)]` attributes — don't assume PascalCase.**
+> - **This B2C tenant issues app-only (client-credentials) tokens with the v1-style issuer** (`https://sts.windows.net/{tenantId}/`) even though the v2.0 authority endpoint is used to request them. The old codebase's `AuthConfig.cs` hardcoded `ValidIssuer` to this exact value — the new codebase initially omitted it, relying on `Authority`-based OIDC discovery (which expects the v2-style issuer), causing every token to fail issuer validation (401). Fixed by adding `ValidIssuer = $"https://sts.windows.net/{tenantId}/"` explicitly back. Don't drop a hardcoded value from old code without understanding why it's there.
+> - **`kv-dev-nokasapi-cashmgmt` uses the legacy Access Policy authorization model** (`enableRbacAuthorization: false`), not RBAC. `az role assignment create ... --role "Key Vault Secrets User"` succeeds but is **silently ignored** by a vault in this mode — Key Vault References in App Settings fail with "denied access" until an actual access policy (`az keyvault set-policy`) is added for the identity. Check `enableRbacAuthorization` before assuming an RBAC grant will work against any given vault.
+> - **`az functionapp create --runtime-version` wants `10`, not `10.0`.** Cross-resource-group `--plan` references need the full resource ID for `az functionapp create` (short name resolution that works for `az webapp create` doesn't for the Functions equivalent). `az functionapp vnet-integration add` requires both `--vnet` and `--subnet` — a full subnet resource ID alone isn't accepted.
+> - **Git Bash mangles `/subscriptions/...`-style CLI arguments** into Windows paths (MSYS path conversion) — prefix with `MSYS_NO_PATHCONV=1` when passing full Azure resource IDs as arguments from Git Bash.
+> - **The `cashbag.registration.access` App Role now exists** in `Nokas.CashBagManagement.WebAPI`'s manifest (added via direct manifest edit — the App roles UI blade wasn't cooperating) and is granted + admin-consented on the session's test client app **only** — this was deliberately scoped as an additive, non-breaking change (old `cashbag.api.access` untouched, no other partners touched). The full rename/migration described in the paragraph below is still not done.
+
 > **Planned role rename/split — not yet implemented, do not build against it prematurely:** today the single partner role is `cashbag.api.access`, enforced by the `PartnerAccess` policy on all existing registration endpoints. As part of the counting-result work, this is being **split into two roles**: `cashbag.registration.access` (the renamed successor to `cashbag.api.access`, covering the existing registration endpoints) and `cashbag.countingresult.read` (new, covering both counting-result endpoints), enforced by policies `PartnerRegistrationAccess` and `PartnerCountingResultRead` respectively. This is a breaking change for existing partners — the App Role manifest rename/add, admin-consent, and each partner's role assignment must be coordinated with the counting-result rollout (implementation phase 5 below), not deployed silently. Until that phase ships, `cashbag.api.access` / `PartnerAccess` remains the real, live role — don't reference the new names as if they already exist in production.
 
 ## What this system is
@@ -42,7 +74,8 @@ Nokas.CashMgmt.BagReg.Func/            Azure Functions isolated worker (net8.0),
   CountingResultSyncFunction.cs        (new) Timer (every 30 min), VNet — syncs Nattsafe → Cosmos countingresults
   CountingResultResyncFunction.cs      (new) HTTP, function-key auth, NOT exposed via APIM — repair/backfill tool
 
-NokasIntegrationPortal/                Vite + React 18 + TypeScript SPA
+NokasIntegrationPortal/                Vite 8 + React 19 + TypeScript SPA (see Integration Portal section)
+  src/components/ui/index.tsx          Shared design-system primitives - import via "@/components/ui"
   src/authConfig.ts                    MSAL config (B2C authorities)
   src/App.tsx                          Routes: public pages + /portal/* behind RequireAuth
   src/pages/private/                   Dashboard (dummy), BusinessActivityMonitoring (stub), Profile, api-guide/*
@@ -55,7 +88,13 @@ B2C_CustomPolicies/                    Azure AD B2C Identity Experience Framewor
   ...PASSWORDRESET.xml                 Relying party
 
 apimpolicy.xml                         APIM inbound policy: validate-jwt + rate-limit-by-key + backend rewrite
-bag-counting-result-api-architecture.md   Full design doc for the counting-result extension — decisions D1–D17 are LOCKED; implement them, do not re-litigate.
+bag-counting-result-api-architecture.md   Base design doc for the counting-result extension (D1–D17) — now AMENDED by
+                                          COUNTING_RESULT_DESIGN.md (2026-08-08); where they conflict, the newer doc wins.
+REGISTRATION_REWRITE_DESIGN.md            Design lock for the full registration rewrite (see callout at top of this file)
+COUNTING_RESULT_DESIGN.md                 Phase-1 (NOK-only) counting-result design lock
+ExistingFullFlow.md                       Owner-authored end-to-end business flow (Cash Portal → BizTalk → Nattsafe)
+SQL/                                      On-prem DDL + procs (source of truth for downstream behavior)
+BizTalk/BagRegistration.xsd               Frozen Service Bus message contract (API delivers bagRegistration JSON body only)
 ```
 
 ## Architecture (request flows)
@@ -64,7 +103,7 @@ bag-counting-result-api-architecture.md   Full design doc for the counting-resul
 
 **POST bag-registration:** `[ApiController]` auto-validates the model (conditional: NOK requires `totalOrderAmount`, no `bagItemsFC`; Valuta requires `bagItemsFC`, no `bagItemsLC`) → call Function `validate/{bagNumber}` (duplicate check against on-prem cache DB) → map to document (`id = bagNumber`, `clientId` from token `azp`/`appid`, status `In-Progress`… response says `Registered`) → **one Cosmos transactional batch** creates the bag document *and* an `OutboxMessage` (subject `bagregistration`) atomically, same partition (unique index on `/BagRegistration/BagNumber` backs up the duplicate check). There is no direct Service Bus call in the request path — `OutboxDispatcherHostedService` polls for `Pending` outbox records every 5s and publishes them, retrying indefinitely on failure, so the partner's success/failure response depends only on Cosmos. Raw body archived to Blob via middleware → in-memory channel → hosted service. Returns `201 Created` with a `Location` header (not `200`).
 
-**GET / DELETE / countingresult (single-bag, legacy path):** always scoped to the caller's `clientId` (Cosmos partition key). GET is a point read (`ReadItemAsync(bagNumber, clientId)`, since `id = bagNumber`) and no longer mutates the document. DELETE consults the Function `status/{bagNumber}` first; a bag is cancellable only when `intStatus ∈ {0,1,2}` and `dtmTransportFetch` is null; cancellation writes the status update and a `deleteBagRegistration` outbox event in the same transactional batch (same pattern as POST). Status-code map (keep API and Function copies in sync — they have already drifted; **there is now a third consumer of this map, the counting-result sync — see Conventions**): 0/1=registered, 2=in-progress, 3=picked-up, 4=received by bank, 5=counted, 10=canceled, 11=not approved, 12=approved by bank, 13=missing, -1/8/9=error; transport-fetched 0/1/2 ⇒ picked-up.
+**GET / DELETE / countingresult (single-bag, legacy path):** always scoped to the caller's `clientId` (Cosmos partition key). GET is a point read (`ReadItemAsync(bagNumber, clientId)`, since `id = bagNumber`) and no longer mutates the document. DELETE calls the Function `status/{bagNumber}`, whose proc `api_CancelBagIfRegistered` **performs the Nattsafe cancellation itself** (status→10 `'Kansellert'` when `intStatus ∈ {0,1,2}` and `dtmTransportFetch` is null; see `SQL/api_CancelBagIfRegistered.sql`) and returns the *pre-cancel* status — the "status check first" wording used here previously was wrong; it's attempt-cancel-and-interpret. The API then writes its own status update and a `deleteBagRegistration` outbox event in the same transactional batch (same pattern as POST); BizTalk's handling of that message is downstream bookkeeping, out of API scope per owner. Status-code map (keep API and Function copies in sync — they have already drifted; **there is now a third consumer of this map, the counting-result sync — see Conventions**): 0/1=registered, 2=in-progress, 3=picked-up, 4=received by bank, 5=counted, 10=canceled, 11=not approved, 12=approved by bank, 13=missing, -1/8/9=error; transport-fetched 0/1/2 ⇒ picked-up.
 
 **Counting result (new sync-and-serve path — see full section below):** a VNet-integrated timer Function syncs on-prem Nattsafe data every 30 minutes into a dedicated Cosmos container, eliminating on-prem dependency from the partner request path at runtime. The single-bag `GET .../countingresult/{bagNumber}` endpoint is being repointed from its old live on-prem Function call to this Cosmos-backed path (old live lookup remains only as an internal fallback), and a new interval/paginated query endpoint is added.
 
@@ -94,8 +133,8 @@ bag-counting-result-api-architecture.md   Full design doc for the counting-resul
 - Counting fields: declared = `dblAmount`, counted = `dblControlledAmount`, countedAt = `dtmControlledAt`, pickedUp = `dtmTransportFetch`, registered = `dtmRegDate`. `deviation = countedAmount − declaredAmount`, computed at sync time; all three null until counted.
 - All statuses are stored and returned (registered → counted → cancelled), plus a compact `statusHistory` array per document sourced from `StatusTracking`.
 - `registrationChannel` derived from `vchMyReference LIKE 'API_%'` → `"API"` else `"Portal"`; informational only, **never used for authorization.**
-- **`bagLifecycleId` (new, confirmed scope — implementation task open):** partners need the registration-side lifecycle GUID on the counting-result record to correlate it back to their original POST. The sync reads *only* from Nattsafe SQL and never touches the registration Cosmos container, so this has to arrive via Nattsafe itself, not a cross-container lookup — and specifically not a join on `bagNumber` (recycled, would risk stamping the wrong lifecycle ID onto a reused bag number). Decided approach: **repurpose an existing unused column in `Nattsafearkiv`** to carry the value, populated by the downstream on-prem integration writer at row-creation time (it already receives the full registration event, including `bagLifecycleId`, off the Service Bus topic), and `usp_CountingResult_FetchChanges` selects it through like any other field. **Open before implementation:** which specific column is safe to repurpose — confirm it's genuinely unused, and specifically don't reuse anything already implicated in the `vchMyReference`/`registrationChannel` derivation above. This is on-prem/Nattsafe-schema work, coordinate before phase 1 below.
-- **`currencyType` (new, confirmed scope):** three values — `NOK`, `DKK`, `Valuta` (generic foreign-currency bucket; per business confirmation, SEK is treated as falling under `NOK` for now — a known approximation, not a rigorous mapping, revisit if it ever becomes material). Not currently a field on the counting-result document — needs to be added at sync time from Nattsafe (source column TBD, same on-prem coordination as `bagLifecycleId` above) and is filterable, so needs a matching composite index (see Cosmos schema below).
+- **`bagLifecycleId` — RESOLVED 2026-08-08: dropped from the phase-1 counting-result contract** (`COUNTING_RESULT_DESIGN.md` §2-A1). The old plan's premise was wrong: the Service Bus message **never carried** `bagLifecycleId` (verified against the outbox serialization code and the XSD), and Nattsafe schema changes are now barred anyway. Partners correlate by `bagNumber`, which is globally non-reusable for API-registered bags (the CacheDB duplicate check is permanent and not client-scoped). Documented fallback if ever demanded: sync-time Cosmos point-read using `vchMyReference`'s embedded clientId + bagNumber. `bagLifecycleId` remains in the registration 201 response exactly as today.
+- **`currencyType` — phase-1 decision 2026-08-08:** response field kept but stamped constant `"NOK"` (phase 1 is NOK-only; everything in `Nattsafearkiv` is NOK-side by construction — Valuta went to AX). The filter parameter and its composite index are **deferred** to the DKK/Valuta phase (`COUNTING_RESULT_DESIGN.md` §2-A2). Eventual value set stays `NOK | DKK | Valuta` (SEK folded under `NOK` per business confirmation — known approximation).
 - **Status filter buckets (new — a second, coarser layer on top of the shared status map, specific to this API's `status` query parameter):** the shared raw-code → granular-label map above stays the single source of truth and is unchanged; the counting-result API additionally exposes only **6 bucketed values** for its `status` filter, folding the granular labels down as follows:
 
   | Exposed bucket | Raw Nattsafe codes folded in |
@@ -115,7 +154,7 @@ Timer Function (every 30 min, VNet) calls read-only SP `usp_CountingResult_Fetch
 
 ### Cosmos schema & indexing
 
-- Container `countingresults`, PK `/clientId`, `id` = `nattsafeRecordId.ToString()`, TTL configurable (default 548 days).
+- Container `countingresults`, PK `/clientId`, `id` = `nattsafeRecordId.ToString()`, TTL configurable (default 548 days). **If any document model here carries a nullable `ttl`, it must be serialised with `NullValueHandling.Ignore`** — `ttl` is a reserved Cosmos property that must be a valid integer whenever present, and emitting `"ttl": null` gets the document rejected with `400`. This exact bug broke every bag-registration POST (see Known pitfalls).
 - Composite indexes: `(clientId, countedAt DESC)`, `(clientId, registeredAt DESC)`, `(clientId, lastUpdatedAt DESC)`, `(clientId, customerRefNumber, countedAt DESC)`, `(clientId, currencyType, countedAt DESC)` (new, for the `currencyType` filter). Exclude `/statusHistory/*`, `/denominations/*`, `/amounts/*` from indexing.
 - Sync watermark state = single Cosmos doc `sync-state`: `{ statusTrackingWatermark, mappingWatermark, lastSuccessfulRunUtc }`. Advance watermarks **only after the full run commits**. `lastSuccessfulRunUtc` feeds `dataAsOf` in every API response.
 - `lastUpdatedAt` on a document = max `StatusTracking.dtmDate` seen for that record in the run (NOT sync wall-clock, unless no tracking row exists).
@@ -181,17 +220,9 @@ Timer Function (every 30 min, VNet) calls read-only SP `usp_CountingResult_Fetch
 8. Initial backfill for all existing mapping rows; partner test on `api-test`.
 9. Partner-facing docs/Swagger: `dateType` semantics, `status` bucket values, `currencyType` values, paging loop, `dataAsOf`, error codes.
 
-### Open architectural question — carried forward, not yet decided
+### Open architectural question — RESOLVED 2026-08-08
 
-Should `NokasExternalCustomerMapping` migrate from on-prem SQL to Cosmos DB?
-
-- The partner request path already has **zero** on-prem dependency once sync-and-serve is live (mapping is resolved at sync time), so migration would not improve runtime availability — that's not the argument for it.
-- The genuine benefits would be operational: onboarding becomes a pure Azure-side action, and Cosmos Change Feed would enable event-driven backfill instead of maintaining a second watermark.
-- **Two facts are needed before deciding:**
-  1. Whether other on-prem or ERP processes consume the mapping table directly (the `AXProjectId` column suggests a possible ERP integration that a migration could break).
-  2. Where the *existing* bag-registration flow currently resolves `customerRefNumber` → `NokasCustomerNumber` — if that resolution already happens somewhere reusable, migrating the table has a cleaner path; if it's baked into on-prem logic, migration is riskier than it looks.
-
-Don't act on this migration without answering both.
+`NokasExternalCustomerMapping` **stays on-prem SQL**. Both blocking facts were answered by `ExistingFullFlow.md`: **BizTalk itself consumes the mapping table at message-processing time** — it resolves `CustomerRefNumber` → `NokasCustomerNumber` before calling the downstream service, for both the NOK and AX/Valuta branches (`AXProjectId` serves the AX branch) — so migrating the table would break BizTalk, which is out of bounds. The resolution never happens in the API at all. Do not revisit unless the BizTalk constraint itself changes.
 
 ## Conventions
 
@@ -211,17 +242,88 @@ Don't act on this migration without answering both.
 
 - **API:** `dotnet run` in the API project; Swagger at `/swagger`. Needs Key Vault access (DefaultAzureCredential — `az login`) or local user-secrets overriding `CosmosDb/ServiceBus/BlobStorage/AzureAd/BagStatusFunction` sections. Use the Cosmos emulator locally if possible.
 - **Function:** `func start` / F5 (port 7019). Needs `local.settings.json` with the two SQL connection strings; requires VPN/network path to on-prem SQL to be useful.
-- **Portal:** Node ≥ 22 (moving to 24 LTS), `npm install && npm run dev` — dev server expects HTTPS certs at `cert/key.pem`/`cert/cert.pem` (mkcert). Redirect URI is `window.location.origin`, so B2C app registration must list the localhost origin. Known issue: `swagger-ui-react` is imported but missing from package.json.
+- **Portal:** Node 24, `npm install && npm run dev`. `npm run typecheck` (`tsc -b --noEmit`) and `npm run lint` both pass clean — keep it that way; `build` is deliberately *not* gated on typecheck so a deploy is never blocked by it. Dev-server HTTPS is optional: certs at `cert/key.pem`/`cert/cert.pem` (mkcert) are used when present, otherwise it serves HTTP. Redirect URI is `window.location.origin`, so the B2C app registration must list whichever localhost origin you use. Note `/portal/*` sits behind `RequireAuth`, so previewing guide pages locally needs a B2C login.
 - **B2C policies:** upload order matters — Base → Localization → Extensions → RP files. Tenant `nokasb2ctest.onmicrosoft.com` (TEST). Policy IDs are referenced by exact name in `authConfig.ts`.
 - **Testing the API as a partner:** client-credentials token per the OAuth guide (`scope=https://nokasb2ctest.onmicrosoft.com/api/nokas/.default`), Postman collection in `wwwroot/docs/`.
 - No automated test project for the *registration* API — by explicit prior preference for that codebase; verification there is `dotnet build` + manual testing via Postman/Swagger. **This preference does not extend to the counting-result work** — that surface gets unit + integration tests per the list above, `dotnet build`/`dotnet test` from solution root (adjust if the repo uses a different layout — check the `.sln` first).
 
 ## Deployment
 
-- API → Azure App Service `api-nokas-bagreg-…` (Norway East), Web Deploy profile in Properties. Exposed only via `api-test.nokas.com` → Front Door → APIM (policy in `apimpolicy.xml`).
-- Function → `func-test-nokas-api-bagreg` / `func-prod-nokas-api-bagreg`, zip deploy; VNet-integrated for on-prem SQL. Same Function App hosts the new counting-result sync/resync functions — no separate Function App.
-- Portal → static build (`npm run build` → `dist/`), hosted on IIS/App Service (`public/web.config` present).
-- Environments: TEST (`nokasb2ctest`, api-test.nokas.com) and PROD (separate tenant/apps). Swagger restrictions and FDID checks activate only in `Production`.
+**Deploy with the committed scripts — not Visual Studio.** The old `.pubxml` publish profiles are gitignored and no longer exist in the repo; only orphaned `serviceDependencies.*.json` remain. Everything is Azure CLI, so it behaves identically from VS Code, Visual Studio, or a plain terminal.
+
+```text
+deploy/deploy-test.ps1                            all logic + environment constants (single source of truth)
+Nokas.CashMgmt.BagRegistration.API/deploy.ps1     thin wrapper -> -Target api
+Nokas.CashMgmt.BagReg.Func/deploy.ps1             thin wrapper -> -Target func
+NokasIntegrationPortal/deploy.ps1                 thin wrapper -> -Target portal
+```
+
+Each target builds → zips → deploys → **reads the live build stamp back** to prove the deployment actually landed. All three paths were re-verified end-to-end on 2026-08-04.
+
+**Build stamps** (added so a silent deploy failure can't masquerade as success — they also encode the git SHA, e.g. `1.0.0+1396db50… @ 2026-08-04T22:07:22Z`):
+
+| Component | Where the stamp appears |
+|---|---|
+| API | `X-Build-Stamp` response header on **every** response (incl. 401s) + the Swagger description, which also shows the environment |
+| Function | `buildStamp` in `ValidateBagNumber` responses — deliberately on the **error paths too**, so it is visible even when on-prem SQL is down |
+| Portal | `<meta name="build-stamp">` in `index.html` |
+
+Deployment notes learned the hard way:
+
+- `az webapp deploy` **merges** into `wwwroot` — deleted files stay served forever. The portal target passes `--clean true` (safe: `dist/` is a complete self-contained site including `web.config`). API and Function deliberately do **not** — their `wwwroot` was not inspectable (Kudu basic auth returns 401 on the API), and cleaning a directory you cannot inspect is not worth the risk. Consequence: stale assemblies linger there.
+- The scripts set `$ErrorActionPreference = 'Continue'`, not `'Stop'`. In Windows PowerShell 5.1 native tools writing warnings to stderr surface as a terminating `NativeCommandError` even on success; every native call is checked via `$LASTEXITCODE` instead.
+- Environments: TEST (`nokasb2ctest`, `api-test.nokas.com`) and PROD. Swagger restrictions and FDID checks activate only in `Production`.
+- **PROD resources exist but are not live** (per project owner, 2026-08-04): `api-nokas-bagreg-prod` and `func-nokas-api-bagreg` in subscription **`corp-lz-prod-001`**, plus an APIM API `prod-nokas-bag-registration-api` (path `prod`) and Front Door route `apim-bagreg-prod`. These were created for testing and are **not** meant to be treated as production yet. When testing, make sure you are on `func-**test**-nokas-api-bagreg-cwe9eddzbmhjhtfe…` — the prod host `func-nokas-api-bagreg-bzdpf8b8dph8exbd…` looks similar and will 404 with a TEST key.
+
+### TEST resource names (verified 2026-08-04)
+
+Subscription `corp-lz-test-dev-001`, resource group `rg-nokasapi-cashmgmt` unless noted.
+
+| Purpose | Resource |
+|---|---|
+| API | `api-nokas-bagreg` (.NET 8, AlwaysOn, **32-bit worker**, `ASPNETCORE_ENVIRONMENT=Production`) |
+| Function | `func-test-nokas-api-bagreg` (dotnet-isolated, VNet → `snet-test-openAPI`) |
+| Portal | `nokas-integration-portal`, custom domain `integration.nokas.com` |
+| Cosmos | `nokasbagregistrationapitest` → db `BagRegistration` → containers `BagRegistrations` (PK `/clientId`, `defaultTtl = -1`) and `ClientDirectory` |
+| Service Bus | namespace **`sb-test-crmintegration`** (`rg-appintegration-test-crm`), topic `sbt-bagregistration`, subs `sub-bagregistration` / `sub-bagdeletion` — **consumed by BizTalk**, so the subscription normally shows 0 active messages even when publishing works |
+| Blob archive | `nokasintegrationarchive` / container `integrationarchive` |
+| Key Vault | `kv-dev-nokasapi-cashmgmt` — exactly 4 secrets: `CosmosDb--KeyValue`, `BlobStorage--ConnectionString`, `ServiceBus--ConnectionString`, `NattsafeSQLDBConnString` |
+| APIM | `apim-avarn-dev-test` (`rg-common-test-dev`), Developer SKU, API `nokas-bag-registration-api` (root path) |
+| Front Door | `afd-test-dev` (`rg-common-test-dev`), domain `api-test.nokas.com`, route `apim-bagreg` |
+| App Insights | `api-nokas-app-insights` (+ workspace `api-nokas-la-workspace`) |
+
+**Front Door routing for `api-test.nokas.com`:** `/api/cash-mgmt/*` → APIM → App Service; `/swagger/*` → App Service **directly, bypassing APIM**; `/oauth2/v2.0/*` → `login.microsoftonline.com`.
+
+**Live APIM policy** (API scope, `nokas-bag-registration-api`): `validate-jwt` against tenant `24aa7821…`, audience `https://nokasb2ctest.onmicrosoft.com/api/nokas`, then `rate-limit-by-key` **10 calls / 60 s** keyed on `iss|appid`, then backend rewrite. **The real TEST rate limit is 10/60s** — portal docs previously claimed 200/60s, which was wrong and has been corrected. The prod API definition uses 100/60s.
+
+### Diagnostics (things that waste time if you don't know them)
+
+- **App Insights via CLI:** `az extension add --name application-insights`, then `az monitor app-insights query --app api-nokas-app-insights -g rg-nokasapi-cashmgmt --analytics-query "<KQL>" --offset 6h -o json`. Use **`-o json`** — `-o table` silently renders nothing for many result shapes and looks like "no data".
+- **`az` is a `.cmd` wrapper, so cmd.exe re-parses arguments.** Parentheses in JMESPath (`[?contains(name,'x')]`) and `&` in URLs both break it. Filter in PowerShell instead, or avoid those characters.
+- **Reading a function key:** do **not** use `--query "'api-call-key'"` — in JMESPath a single-quoted token is a *string literal*, so that returns the text `api-call-key` (12 chars), not the key. Use `-o json | ConvertFrom-Json` then `.'api-call-key'`. Each function has its own `api-call-key`; the API uses that, not the host key.
+- **The portal returns 200, not 404, for missing assets** — the IIS rewrite sends any unmatched path to `index.html`. Check `Content-Type` (`text/html` = the file is gone), never the status code.
+- `curl.exe` output in PowerShell is a **string array**; `-match` on an array filters instead of setting `$Matches`. Join with `-join "\`n"` before regex matching.
+
+## Integration Portal (rebuilt 2026-08-04)
+
+**Brand:** the NOKAS green is **`#0e4938`** — sampled from the official logo two ways (the `fill` in `Nokas_Digital_Logo_stacked.svg`, and a pixel decode of `Nokas_Digital_Logo.png` returning `rgb(14,73,56)`). The codebase previously used `#014737` in ~48 places, which is a *different* colour and never matched the logo. The whole palette now derives from the real value via `tailwind.config.js` → `brand.800`. **Use the `brand-*` / `accent-*` Tailwind tokens, not raw hex.**
+
+**Logo assets** (`public/`): `Nokas_Digital_Logo.png` (horizontal, black wordmark + green mark → light backgrounds), `Nokas_Digital_Logo_white.png` (pure white → dark backgrounds), `Nokas_Digital_Logo_stacked.*` (unused, kept), and `nokas-mark.svg` — the official wave mark only, white on a brand-green tile, used as the browser tab icon because the full wordmark is illegible at 16px. The old `logo.png`/`vite.svg` are deleted. The logo already contains the word "NOKAS", so **do not add a "NOKAS" text label beside it.**
+
+**Design system:** shared primitives live in `src/components/ui/index.tsx` (`Card`, `CodeBlock` with copy buttons, `Badge`, `MethodBadge`, `Callout`, `Table`, `PageHeader`, `SectionHeading`, `JumpNav`, `CopyButton`, `InlineCode`). Import from `@/components/ui`. The `@/` alias is declared in **both** `vite.config.ts` and `tsconfig.app.json` — keep them in sync. Pages own their own width: `PublicLayout` no longer wraps children in a container, so pages can render full-bleed banded sections. `LandingPage` is the deliberate exception — it re-applies the original `max-w-5xl` container internally to preserve its previous look.
+
+**Dependencies:** React 19.2, MSAL browser/react v5, react-router-dom 7, recharts 3, Vite 8, Tailwind 3.4. Notes:
+
+- `package.json` previously could not install at all — `lucide-react: ^0.5.0` does not exist on npm, and `swagger-ui-react` was imported by `PublicSwagger.tsx` but absent from the manifest. A `package-lock.json` now exists (there was none), so builds are reproducible.
+- **`swagger-ui-react` has been removed entirely.** `PublicSwagger` renders the live Swagger UI in an iframe; the library was only referenced by a fallback branch that could never execute.
+- **MSAL v5 removed `cache.storeAuthStateInCookie`** — `CacheOptions` now accepts only `cacheLocation` and `cacheRetentionDays`. The old setting was being silently ignored.
+- `vite.config.ts` guards the dev-server HTTPS certs behind `fs.existsSync` — Vite loads the config *before* setting `NODE_ENV`, so `isDev` is true even during `vite build`, and an unguarded `readFileSync` breaks the build on any machine without mkcert certs.
+
+**Routing:** `/swagger` (lazy-loaded `PublicSwagger`) and `api-guide/use-cases` are now wired up — all three were previously orphaned components that no route referenced. There is a proper 404 page. `/portal` redirects to `/portal/api-guide`; **Dashboard and BusinessActivityMonitoring remain intentionally unlinked** because they are still placeholders.
+
+**Caching — `public/web.config`:** `index.html` is served `no-cache, no-store, must-revalidate` and `/assets/*` is `immutable`. This is load-bearing, not an optimisation: `index.html` is the only file mapping to the current content-hashed bundle names, so a cached copy loads a stale bundle and any route added since that build 404s until the user hard-refreshes. That exact symptom was observed before the fix.
+
+**Custom domain:** `integration.nokas.com` was down for ~6 weeks with an expired TLS cert — it was bound to the expired wildcard `*.nokas.com` (DigiCert, expired 2026-06-16) while a valid dedicated GeoTrust cert sat unused in the same resource group. Check cert bindings, not just DNS, when the portal appears unreachable.
 
 ## Planned work: BAM (Business Activity Monitoring)
 
@@ -238,18 +340,26 @@ Note: `userAccess` (portal-user → `clientId` access grants, Cosmos, planned) a
 ## Known pitfalls & pending fixes (do not regress; fix opportunistically)
 
 - ✅ Fixed: Serilog `MinimumLevel.Default` is now `Information` (`Warning` overrides for `Microsoft.*`/`System.*`); Development also gets a console sink (`Program.cs`) since App Insights has nowhere to write to locally.
-- Security hardening: ✅ API-side role check done (`[Authorize(Policy = "PartnerAccess")]`, app role `cashbag.api.access` — see Conventions above for the App-Role-vs-scope gotcha). **Planned, not yet done:** rename/split into `cashbag.registration.access` + `PartnerRegistrationAccess` (registration) and `cashbag.countingresult.read` + `PartnerCountingResultRead` (counting-result), per the callout at the top of this file — coordinate as a breaking change for existing partners (manifest update, re-consent, per-partner role reassignment), scheduled as implementation phase 5 of the counting-result work. Still pending separately: APIM `required-claims` for the same role; APIM `check-header` for `X-Azure-FDID`; App Service access restriction to APIM; `ValidTokenIssuerPrefixes` in the AvarnAD technical profile must be pinned to Avarn's tenant (currently accepts any Entra tenant); social IdPs slated for removal.
-- ✅ Fixed: dual-write — POST/DELETE now write the bag document and an `OutboxMessage` atomically in one Cosmos transactional batch; `OutboxDispatcherHostedService` publishes to Service Bus from that committed state, retrying indefinitely rather than dropping on failure. See the outbox convention above before touching this path.
+- Security hardening: ✅ API-side role check done (`[Authorize(Policy = "PartnerAccess")]`, app role `cashbag.api.access` — see Conventions above for the App-Role-vs-scope gotcha). **Planned, not yet done:** rename/split into `cashbag.registration.access` + `PartnerRegistrationAccess` (registration) and `cashbag.countingresult.read` + `PartnerCountingResultRead` (counting-result), per the callout at the top of this file — coordinate as a breaking change for existing partners (manifest update, re-consent, per-partner role reassignment), scheduled as implementation phase 5 of the counting-result work. ✅ **App Service access restriction to APIM is DONE** (verified 2026-08-04): `api-nokas-bagreg` has `ipSecurityRestrictionsDefaultAction: Deny`, allowing only the APIM IP `20.251.177.47/32` and the `AzureFrontDoor.Backend` service tag. Practical consequence — **you cannot test against `*.azurewebsites.net` directly, it returns 403; always go via `api-test.nokas.com`.** SCM/Kudu is unrestricted, so zip deploy works from anywhere. Still pending separately: APIM `required-claims` for the same role (confirmed absent); APIM `check-header` for `X-Azure-FDID` (confirmed absent — the API enforces FDID itself for Swagger instead); `ValidTokenIssuerPrefixes` in the AvarnAD technical profile must be pinned to Avarn's tenant (currently accepts any Entra tenant); social IdPs slated for removal.
+- 🔴 **On-prem SQL credentials are in cleartext App Service settings** on `func-test-nokas-api-bagreg`: `NattsafeSQLDBConnString` and `NokasMwCacheDBConnString` contain server IP, user, password, and `Encrypt=False`. Key Vault *has* a `NattsafeSQLDBConnString` secret, but the Function cannot use it — **the Function App has no managed identity at all**, despite `KEYVAULT_NAME` being set. `AzureWebJobsStorage` is likewise a raw account key. Give the Function App a managed identity and move these to Key Vault references.
+- ✅ Fixed: dual-write — POST/DELETE now write the bag document and an `OutboxMessage` atomically in one Cosmos transactional batch; `OutboxDispatcherHostedService` publishes to Service Bus from that committed state, retrying indefinitely rather than dropping on failure. See the outbox convention above before touching this path. **Verified working end-to-end on TEST 2026-08-04** (POST → Cosmos batch → outbox dispatch → `sbt-bagregistration` → BizTalk).
+- ⚠️ **Lesson from 2026-08-04: "written" is not "executed."** The outbox code above was committed in August but the previous TEST deployment dated from **November 2025**, so it had never actually run. The first deploy exposed a bug that broke *every* POST:
+  - `OutboxMessage.Ttl` is `int?` and stays null until published. Newtonsoft serialised it as `"ttl": null`, but `ttl` is a **reserved Cosmos property that must be a valid integer whenever present** (the container has `defaultTtl = -1`, i.e. TTL enabled). Cosmos rejected the outbox document with `400`, which failed the whole transactional batch. Fixed with `[JsonProperty("ttl", NullValueHandling = NullValueHandling.Ignore)]` — the property is now simply absent until `MarkOutboxMessagePublishedAsync` patches it to a real integer. **Never emit a null `ttl`.**
+  - `ExceptionLoggingMiddleware` did `cosmosEx.Message.Contains(...)` — but `CosmosException.Message` is **null** when the repo builds it from `TransactionalBatchResponse.ErrorMessage`, which Cosmos leaves null for batch failures. The resulting `NullReferenceException` escaped the handler and turned a handled 400 into a bare 500, hiding the real cause. Now null-guarded.
+  - Diagnosing a failed batch: the response reports **one** status for the whole transaction, and Cosmos returns the real status only on the *first failing* operation while marking the rest `424 FailedDependency`. `CosmosBagRegistrationRepo.CreateBagRegistration` now logs each operation's own result — keep that logging, it is what identified the culprit.
+- `CreateBagRegistration` does **not** null-check `clientId`, unlike GET which returns `Unauthorized`. A token missing `azp`/`appid` would write a document with a null partition key rather than being rejected. Not yet fixed.
 - ✅ Fixed: `PayloadArchiverHostedService`'s loop is now wrapped in try/catch (one failed upload no longer kills archiving permanently); `BlobArchiveService` no longer blocks DI by creating the container synchronously in its constructor. Still open: the archive queue itself remains in-memory (`Channel`) — a crash/restart/scale-in can still silently lose queued payloads; not yet durable.
 - ✅ Fixed: GET is now a point read (`ReadItemAsync`) and no longer mutates the document (no more history-on-read).
 - `EnsureClientInDirectoryAsync` and the `clientdirectory` single-document design are dead/legacy — don't build on them.
 - B2C Extensions/Base: `api_companyName`'s `DefaultPartnerClaimTypes` points at the `api_clientId` extension attribute (copy-paste bug).
 - No PUT endpoint exists although middleware archives PUTs and docs mention update.
-- **`BagStatusFunction:BaseUrl`/`FunctionKey` config is missing from base `appsettings.json` entirely** — only in `appsettings.Development.json` (git-ignored) locally, and environment variables in Test/Prod. This options class is now `[Required]` + `.ValidateOnStart()`, so an environment missing these values will fail at **startup**, not on first request — confirm Test/Prod actually have them set before deploying this branch.
+- 🔴 **`BagStatusFunction:FunctionKey` is a REAL, LIVE key committed to `appsettings.json`** (added in `6945f3e`, pushed). Verified 2026-08-04: it matches the `api-call-key` **function-scope** key on all three functions of `func-test-nokas-api-bagreg`. The repo is private, so exposure is contained — but the key should be **rotated and removed from the file** (App Service already overrides it via the `BagStatusFunction:FunctionKey` app setting, so removing the committed value breaks nothing in Test/Prod). Note this entry previously claimed the config was *missing* from `appsettings.json` — that was wrong.
+- This options class is `[Required]` + `.ValidateOnStart()`, so an environment missing these values fails at **startup**, not on first request — a misconfigured deploy shows up as blanket 500s, not a targeted error. Check App Service **Log stream** if that happens.
 - `AutoMapper` 15.0.1 has a known high-severity vulnerability advisory (NU1903) — pending upgrade.
-- Portal: MSAL v2 (EOL), hard-coded client IDs (move to `VITE_*` envs), `*-MohamedEliyas.*` duplicate files to be deleted, `@types/axios`/`@types/react-router-dom` mismatched types.
+- Portal: ✅ **Rebuilt 2026-08-04** — see the Integration Portal section below. Still open: hard-coded client IDs (move to `VITE_*` envs); `i18next`/`react-i18next`/`i18next-browser-languagedetector` are installed but **never initialised**, so there is no working language switching (the decorative "EN" selector was removed); the main bundle is ~585 kB and could be code-split further.
 - Status-code map drift between the registration API and the registration Function (§Architecture above) — this now matters even more with a third consumer (counting-result sync) about to read the same statuses; consolidate into one shared library as part of the counting-result work rather than adding a third copy.
-- Target upgrades: .NET 10 LTS (both projects are net8.0), Node 24 LTS, React 19, MSAL v4.
+- Target upgrades: .NET 10 LTS (both projects are still net8.0). ✅ Portal done — Node 24, React 19.2, MSAL v5, Vite 8.
+- APIM `apim-avarn-dev-test` is **Developer SKU**, which carries no SLA and is not licensed for production use. Move to **Basic** (cheapest tier with an SLA) before go-live unless requirements demand higher.
 
 ## Rules for future changes
 

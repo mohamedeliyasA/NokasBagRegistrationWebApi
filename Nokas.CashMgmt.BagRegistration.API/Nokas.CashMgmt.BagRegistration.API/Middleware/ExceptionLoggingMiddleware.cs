@@ -56,7 +56,12 @@ namespace Nokas.CashMgmt.BagRegistration.API.Middleware
                 }
                 else if (ex is CosmosException cosmosEx)
                 {
-                    var raw = cosmosEx.Message;
+                    // CosmosException.Message can be null - the repo constructs one from
+                    // TransactionalBatchResponse.ErrorMessage, which Cosmos leaves null for
+                    // some batch failures. Dereferencing it unguarded turned a handled
+                    // database error into an unhandled NullReferenceException and a bare 500,
+                    // hiding the real cause.
+                    var raw = cosmosEx.Message ?? string.Empty;
                     statusCode = (int)cosmosEx.StatusCode;
 
                     if (raw.Contains("Unique index constraint violation"))
@@ -64,24 +69,28 @@ namespace Nokas.CashMgmt.BagRegistration.API.Middleware
                         title = "Bag number already exists. Please use a unique BagNumber.";
                         field = "BagNumber";
                         code = "ERR_DUPLICATE_BAG";
+
+                        _logger.LogWarning(cosmosEx, "CorrelationId: {CorrelationId} - Cosmos unique index violation.", correlationId);
                     }
                     else
                     {
                         title = "A database error occurred while processing your request.";
                         code = "ERR_COSMOS_GENERIC";
-                    }
 
-                    _logger.LogWarning(cosmosEx, "Cosmos DB error occurred. CorrelationId: {CorrelationId}", correlationId);
+                        _logger.LogCritical(cosmosEx, "CorrelationId: {CorrelationId} - Cosmos DB failure.", correlationId);
+                    }
                 }
+
                 else
                 {
                     title = isDev ? "Unhandled exception occurred." : "An unexpected error occurred.";
                     statusCode = (int)HttpStatusCode.InternalServerError;
                     code = "ERR_INTERNAL";
-                    _logger.LogError(ex,
+                    _logger.LogCritical(ex,
                         "Unhandled exception in Controller: {Controller}, Action: {Action}, URI: {Uri}, CorrelationId: {CorrelationId}",
                         controller, action, fullUrl, correlationId);
                 }
+
 
                 var error = new ErrorResponse
                 {

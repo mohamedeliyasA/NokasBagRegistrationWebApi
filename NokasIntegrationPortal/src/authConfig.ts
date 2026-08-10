@@ -33,7 +33,8 @@ export const msalConfig: Configuration = {
     postLogoutRedirectUri: window.location.origin, // ✅
   },
   cache: {
+    // NOTE: `storeAuthStateInCookie` was removed in @azure/msal-browser v5 —
+    // CacheOptions now only accepts `cacheLocation` and `cacheRetentionDays`.
     cacheLocation: "localStorage",
-    storeAuthStateInCookie: true, // safer with proxies/CDNs; set false if you know you don't need it
   },
 };

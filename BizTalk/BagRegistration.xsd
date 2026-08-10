@@ -1,0 +1,50 @@
+  <!-- The schema is extracted from Biztalk solution.
+   please note the root node name APIBagRegistration and the 
+   namespace is http://APICustomers.Schemas.APIBagRegistrationSchema is added by BizTalk receive pipeline,
+    the responsibility of API is to deliver the json message body 'bagRegistration' -->
+<xs:schema xmlns:b="http://schemas.microsoft.com/BizTalk/2003" attributeFormDefault="unqualified" elementFormDefault="unqualified" targetNamespace="http://APICustomers.Schemas.APIBagRegistrationSchema" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+	<xs:element name="APIBagRegistration">
+		<xs:complexType>
+			<xs:sequence>
+				<xs:element minOccurs="0" name="bagRegistration">
+					<xs:complexType>
+						<xs:sequence>
+							<xs:element minOccurs="0" name="customerRefNumber" type="xs:string"/>
+							<xs:element minOccurs="0" name="registrationType" type="xs:string"/>
+							<xs:element name="actionFlag" type="xs:string"/>
+							<xs:element minOccurs="0" name="messageId" type="xs:string"/>
+							<xs:element minOccurs="0" name="bagNumber" type="xs:string"/>
+							<xs:element minOccurs="0" name="registrationDate" type="xs:string"/>
+							<xs:element name="registeredBy" type="xs:string"/>
+							<xs:element minOccurs="0" name="referenceStatement" type="xs:string"/>
+							<xs:element minOccurs="0" name="turnOverDate" type="xs:string"/>
+							<xs:element minOccurs="0" name="registeredNotes" type="xs:string"/>
+							<xs:element minOccurs="0" name="registeredCoins" type="xs:string"/>
+							<xs:element minOccurs="0" name="registeredChecks" type="xs:string"/>
+							<xs:element minOccurs="0" name="totalOrderAmount" type="xs:string"/>
+							<xs:element minOccurs="0" name="bagItemsLC">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element minOccurs="0" name="seddel1000" type="xs:string"/>
+										<xs:element minOccurs="0" name="seddel500" type="xs:string"/>
+										<xs:element minOccurs="0" name="seddel200" type="xs:string"/>
+										<xs:element minOccurs="0" name="seddel100" type="xs:string"/>
+										<xs:element minOccurs="0" name="seddel50" type="xs:string"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+							<xs:element minOccurs="0" maxOccurs="unbounded" name="bagItemsFC">
+								<xs:complexType>
+									<xs:sequence>
+										<xs:element minOccurs="0" name="itemCurrencyCode" type="xs:string"/>
+										<xs:element minOccurs="0" name="currencyAmount" type="xs:string"/>
+									</xs:sequence>
+								</xs:complexType>
+							</xs:element>
+						</xs:sequence>
+					</xs:complexType>
+				</xs:element>
+			</xs:sequence>
+		</xs:complexType>
+	</xs:element>
+</xs:schema>

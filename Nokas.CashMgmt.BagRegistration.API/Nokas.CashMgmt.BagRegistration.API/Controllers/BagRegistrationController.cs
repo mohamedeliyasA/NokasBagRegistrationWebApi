@@ -96,7 +96,8 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error validating bag number {BagNumber}", bagRequest.BagRegistration.BagNumber);
+                _logger.LogCritical(ex, "CorrelationId: {CorrelationId} - Unable to reach validate Function for bag {BagNumber}",
+                    requestCorrelationId, bagRequest.BagRegistration.BagNumber);
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, "Unable to validate bag number.");
             }
 
@@ -243,7 +244,12 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
                     res.Description = "Bag already Cancelled";
                     res.RequestCorrelationId = requestCorrelationId;
                     res.BagLifecycleId = existing.BagLifecycleId;
+
+                    _logger.LogWarning("CorrelationId: {CorrelationId} - Delete rejected, bag already cancelled: {BagNumber}",
+                        requestCorrelationId, bagNumber);
+
                     return Conflict(res);
+
                 }
 
                 // Bag can be cancelled only if statusValue is 0, 1, or 2 and no transport fetch yet.
@@ -255,8 +261,13 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
                     res.Description = "Bag already processed and cannot be cancelled at this stage.";
                     res.RequestCorrelationId = requestCorrelationId;
                     res.BagLifecycleId = existing.BagLifecycleId;
+
+                    _logger.LogWarning("CorrelationId: {CorrelationId} - Delete rejected, bag {BagNumber} not cancellable (status={Status}, transportFetch={TransportFetch})",
+                        requestCorrelationId, bagNumber, statusValue, dtmTransportFetch);
+
                     return BadRequest(res);
                 }
+
             }
             catch (OperationCanceledException)
             {
@@ -265,7 +276,8 @@ namespace Nokas.CashMgmt.BagRegistration.API.Controllers
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error verifying bag status for bag {Bag}", bagNumber);
+                _logger.LogCritical(ex, "CorrelationId: {CorrelationId} - Unable to reach status Function for bag {Bag}",
+                    requestCorrelationId, bagNumber);
                 return StatusCode(StatusCodes.Status503ServiceUnavailable, "Unable to verify bag status.");
             }
 

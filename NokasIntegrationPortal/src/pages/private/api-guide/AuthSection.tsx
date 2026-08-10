@@ -1,198 +1,193 @@
 import { useEffect } from "react";
+import { Badge, Callout, CodeBlock, EnvUrlList, InlineCode, JumpNav, PageHeader, SectionHeading, Table } from "@/components/ui";
+import { PROD_ENV, TEST_ENV } from "@/config/environments";
+
+const tokenRequest = (env: typeof TEST_ENV) => `POST ${env.tokenUrl}
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+client_id=YOUR_CLIENT_ID
+client_secret=YOUR_CLIENT_SECRET
+scope=${env.scope}`;
+
+const tokenResponse = `{
+  "token_type": "Bearer",
+  "expires_in": 3599,
+  "ext_expires_in": 3599,
+  "access_token": "eyJ0eXAiOiJKV1QiLCJhbGciOi..."
+}`;
+
+const authHeader = `Authorization: Bearer YOUR_ACCESS_TOKEN`;
+
+const jumpItems = [
+  { id: "credentials", label: "Credentials" },
+  { id: "token", label: "Get a token" },
+  { id: "using", label: "Use the token" },
+  { id: "security", label: "Security" },
+];
 
 export default function AuthSection() {
   useEffect(() => {
     document.title = "API Guide | Authentication";
   }, []);
 
-  const jsonTokenResponse = {
-    token_type: "Bearer",
-    expires_in: 3599,
-    ext_expires_in: 3599,
-    access_token: "eyJ0eXAiOiJKV1QiLCJhbGciOi...",
-  };
-
   return (
-    <section className="space-y-6 text-sm text-muted-foreground">
-      <h2 className="text-xl font-semibold text-gray-800">
-        Authentication & Security
-      </h2>
+    <section className="space-y-8">
+      <PageHeader
+        eyebrow="API Guide"
+        title="Authentication & security"
+        lead="The NOKAS Cash Handling API uses OAuth 2.0 client credentials — an industry-standard protocol for secure, token-based machine-to-machine authentication."
+      >
+        <JumpNav items={jumpItems} />
+      </PageHeader>
 
-      <div>
-        <h3 className="text-lg font-semibold text-gray-700">
-          1. Importance of Authentication
-        </h3>
-        <p>
-          In today's digital landscape, securing API access is paramount. The
-          Nokas Cash Handling API employs
-          <strong> OAuth 2.0</strong>, an industry-standard protocol designed to
-          provide secure token-based authentication. This ensures only
-          authorized vendors can access the API, protecting sensitive
-          operational data.
-        </p>
-      </div>
+      {/* ---------------- Credentials ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="credentials" icon="🪪">
+          Obtaining your credentials
+        </SectionHeading>
 
-      <div>
-        <h3 className="text-lg font-semibold text-gray-700">
-          2. Token Security
-        </h3>
-        <p>
-          Vendors must protect their access tokens and always transmit them over{" "}
-          <strong>HTTPS</strong>. This prevents interception and maintains
-          confidentiality during API communications.
-        </p>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-semibold text-gray-700">
-          3. Obtaining Client ID & Secret
-        </h3>
-        <p>
-          To get started, vendors must register with Nokas to obtain
-          credentials:
-        </p>
-        <ul className="list-disc list-inside ml-4">
-          <li>Contact Nokas Customer Support to initiate registration.</li>
-          <li>
-            Submit key application details:
-            <ul className="list-disc list-inside ml-5">
-              <li>
-                <strong>Application Name:</strong> Your app's name
-              </li>
-              <li>
-                <strong>Description:</strong> What your application does
-              </li>
-              <li>
-                <strong>Intended Use:</strong> How you'll use the API
-              </li>
-            </ul>
-          </li>
-          <li>The application will be reviewed for security and compliance.</li>
-          <li>
-            If approved, you'll receive:
-            <ul className="list-disc list-inside ml-5">
-              <li>
-                <strong>Client ID</strong> – public identifier
-              </li>
-              <li>
-                <strong>Client Secret</strong> – private, keep this safe
-              </li>
-            </ul>
-          </li>
-        </ul>
-      </div>
-
-      <div>
-        <h3 className="text-lg font-semibold text-gray-700">
-          4. Requesting an Access Token
-        </h3>
-        <p>
-          Once you have credentials, request an access token using the following
-          values:
-        </p>
-
-       <div className="space-y-4 mt-4">
-  {/* Method & URL */}
-  <div>
-    <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Method & URL</label>
-    <div className="bg-black text-xs font-mono p-3 rounded text-white leading-relaxed overflow-x-auto">
-      <span className="text-pink-400">POST</span>{" "}
-      <span className="text-blue-300">https://api-test.nokas.com/oauth2/v2.0/token</span>
-    </div>
-  </div>
-
-  {/* Headers */}
-  <div>
-    <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Headers</label>
-    <div className="bg-black text-xs font-mono p-3 rounded text-white leading-relaxed overflow-x-auto">
-      <span className="text-yellow-300">Content-Type</span>: <span className="text-green-400">application/x-www-form-urlencoded</span>
-    </div>
-  </div>
-
-  {/* Body */}
-  <div>
-    <label className="block text-xs font-semibold text-gray-600 uppercase mb-1">Body</label>
-    <div className="bg-black text-xs font-mono p-3 rounded text-white leading-relaxed overflow-x-auto">
-      <div><span className="text-yellow-300">grant_type</span>=<span className="text-green-400">client_credentials</span></div>
-      <div><span className="text-yellow-300">client_id</span>=<span className="text-green-400">YOUR_CLIENT_ID</span></div>
-      <div><span className="text-yellow-300">client_secret</span>=<span className="text-green-400">YOUR_CLIENT_SECRET</span></div>
-      <div><span className="text-yellow-300">scope</span>=<span className="text-green-400">https://nokasb2ctest.onmicrosoft.com/api/nokas/.default</span></div>
-    </div>
-  </div>
-</div>
-
-        <p className="text-gray-700 font-medium mt-4">
-          Success Response (200 OK)
-        </p>
-        <div className="bg-black text-xs font-mono p-3 rounded leading-relaxed overflow-x-auto">
-          <div>
-            <span className="text-teal-400">{"{"}</span>
-          </div>
-          <div className="pl-4">
-            <div>
-              <span className="text-yellow-300">"token_type"</span>:{" "}
-              <span className="text-green-400">"Bearer"</span>,
-            </div>
-            <div>
-              <span className="text-yellow-300">"expires_in"</span>:{" "}
-              <span className="text-blue-300">3599</span>,
-            </div>
-            <div>
-              <span className="text-yellow-300">"ext_expires_in"</span>:{" "}
-              <span className="text-blue-300">3599</span>,
-            </div>
-            <div>
-              <span className="text-yellow-300">"access_token"</span>:{" "}
-              <span className="text-green-400">
-                "eyJ0eXAiOiJKV1QiLCJhbGciOi..."
+        <ol className="space-y-3">
+          {[
+            {
+              title: "Contact NOKAS support",
+              body: "Get in touch to start the registration process.",
+            },
+            {
+              title: "Submit your application details",
+              body: "Application name, a description of what it does, and how you intend to use the API.",
+            },
+            {
+              title: "Review",
+              body: "Your application is reviewed for security and compliance.",
+            },
+            {
+              title: "Receive your credentials",
+              body: "On approval you receive a Client ID (public identifier) and a Client Secret (private — keep it safe).",
+            },
+          ].map((step, i) => (
+            <li
+              key={step.title}
+              className="flex gap-4 rounded-xl border border-gray-200 bg-white p-4 shadow-card"
+            >
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-800 text-xs font-bold text-white">
+                {i + 1}
               </span>
-            </div>
-          </div>
-          <div>
-            <span className="text-teal-400">{"}"}</span>
-          </div>
-        </div>
+              <div>
+                <h4 className="text-sm font-semibold text-gray-900">{step.title}</h4>
+                <p className="mt-0.5 text-xs leading-relaxed text-gray-600">{step.body}</p>
+              </div>
+            </li>
+          ))}
+        </ol>
 
-        <p className="mt-2">
-          <strong>access_token</strong> is required in every secured API
-          request. It expires in the given duration (in seconds).
-        </p>
-
-        <p className="mt-2">
-  The <strong>access_token</strong> is valid for <strong>60 minutes</strong> (3599 seconds). Consumers are advised to reuse
-  this token for all authorized API calls within that window, rather than requesting a new token for every call.
-  This practice helps reduce authentication overhead and improves performance and resource usage on both client and server sides.
-</p>
-
-        <p className="mt-2">Expected Status Codes:</p>
-        <ul className="list-disc list-inside ml-4">
-          <li>
-            <strong>200 OK</strong> – Token successfully issued
-          </li>
-          <li>
-            <strong>400 Bad Request</strong> – Missing or invalid parameters
-          </li>
-          <li>
-            <strong>401 Unauthorized</strong> – Incorrect client credentials
-          </li>
-        </ul>
+        <Callout tone="danger" title="Keep your secret secret">
+          Your <InlineCode>client_secret</InlineCode> is equivalent to a password. Never commit it to
+          source control, embed it in a browser application, or share it over email. If you believe
+          it has been exposed, contact NOKAS immediately to have it rotated.
+        </Callout>
       </div>
 
-      <div>
-        <h3 className="text-lg font-semibold text-gray-700">
-          5. Using the Access Token
-        </h3>
-        <p>
-          Include the token in the <strong>Authorization</strong> header for
-          every request:
+      {/* ---------------- Token ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="token" icon="🎟️">
+          Requesting an access token
+        </SectionHeading>
+
+        <EnvUrlList
+          title="Token endpoint"
+          entries={[
+            { label: TEST_ENV.label, url: TEST_ENV.tokenUrl },
+            { label: PROD_ENV.label, url: PROD_ENV.tokenUrl },
+          ]}
+        />
+
+        <Callout tone="warning" title="Test and production are separate B2C tenants">
+          Each environment issues its own credentials and uses its own <InlineCode>scope</InlineCode>.
+          Test credentials will not authenticate against production, and vice versa.
+        </Callout>
+
+        <CodeBlock label={`Request — ${TEST_ENV.label}`} code={tokenRequest(TEST_ENV)} />
+        <CodeBlock label={`Request — ${PROD_ENV.label}`} code={tokenRequest(PROD_ENV)} />
+        <CodeBlock label="200 OK (both environments)" code={tokenResponse} />
+
+        <Callout tone="info" title="Reuse your token">
+          The token is valid for <strong>60 minutes</strong> (3599 seconds). Reuse it across all API
+          calls within that window rather than requesting a new one per call — it reduces
+          authentication overhead and load on both sides.
+        </Callout>
+
+        <div>
+          <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500">
+            Expected status codes
+          </p>
+          <Table headers={["Code", "Meaning"]}>
+            <tr>
+              <td className="whitespace-nowrap px-3 py-2">
+                <Badge tone="green">200 OK</Badge>
+              </td>
+              <td className="px-3 py-2 text-gray-700">Token successfully issued.</td>
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap px-3 py-2">
+                <Badge tone="amber">400 Bad Request</Badge>
+              </td>
+              <td className="px-3 py-2 text-gray-700">Missing or invalid parameters.</td>
+            </tr>
+            <tr>
+              <td className="whitespace-nowrap px-3 py-2">
+                <Badge tone="amber">401 Unauthorized</Badge>
+              </td>
+              <td className="px-3 py-2 text-gray-700">Incorrect client credentials.</td>
+            </tr>
+          </Table>
+        </div>
+      </div>
+
+      {/* ---------------- Using ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="using" icon="🔗">
+          Using the access token
+        </SectionHeading>
+
+        <p className="text-sm leading-relaxed text-gray-600">
+          Include the token in the <InlineCode>Authorization</InlineCode> header of every request:
         </p>
-        <pre className="bg-gray-100 p-3 rounded text-xs font-mono text-gray-800 overflow-x-auto">{`
-Authorization: Bearer YOUR_ACCESS_TOKEN
-        `}</pre>
-        <p>
-          This ensures every call is securely authenticated against the Nokas
-          API.
-        </p>
+
+        <CodeBlock label="Header" code={authHeader} />
+      </div>
+
+      {/* ---------------- Security ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="security" icon="🛡️">
+          Security requirements
+        </SectionHeading>
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          {[
+            {
+              title: "Always use HTTPS",
+              body: "Tokens must only ever be transmitted over TLS. Plain HTTP requests are rejected.",
+            },
+            {
+              title: "Store tokens securely",
+              body: "Hold tokens in memory or a secure secret store — never in logs, URLs or client-side storage.",
+            },
+            {
+              title: "One identity per integration",
+              body: "Every request is scoped to the client ID in your token. You can only ever see your own data.",
+            },
+            {
+              title: "Rotate on suspicion",
+              body: "If a secret may have leaked, request a rotation rather than waiting for expiry.",
+            },
+          ].map((c) => (
+            <div key={c.title} className="rounded-xl border border-gray-200 bg-white p-4 shadow-card">
+              <h4 className="text-sm font-semibold text-gray-900">{c.title}</h4>
+              <p className="mt-1 text-xs leading-relaxed text-gray-600">{c.body}</p>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

@@ -1,0 +1,9 @@
+{
+  "profiles": {
+    "Nokas_CashMgmt_BagRegistration_Func": {
+      "commandName": "Project",
+      "commandLineArgs": "--port 7016",
+      "launchBrowser": false
+    }
+  }
+}

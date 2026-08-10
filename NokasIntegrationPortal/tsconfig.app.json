@@ -15,6 +15,12 @@
     "noEmit": true,
     "jsx": "react-jsx",
 
+    /* Path alias - must mirror the `resolve.alias` entry in vite.config.ts */
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["src/*"]
+    },
+
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,

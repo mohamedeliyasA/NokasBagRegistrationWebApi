@@ -43,14 +43,15 @@ namespace Nokas.CashMgmt.BagRegistration.API.Services
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "Failed to dispatch outbox message {OutboxId} for client {ClientId}. Left pending for retry.", message.Id, message.ClientId);
+                            _logger.LogCritical(ex, "Failed to dispatch outbox message {OutboxId} for client {ClientId}. Left pending for retry.", message.Id, message.ClientId);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Outbox dispatch cycle failed.");
+                    _logger.LogCritical(ex, "Outbox dispatch cycle failed.");
                 }
+
             }
         }
     }

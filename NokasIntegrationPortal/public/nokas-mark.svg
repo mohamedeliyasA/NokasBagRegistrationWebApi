@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  NOKAS browser/tab icon.
+
+  Uses only the official wave mark from Nokas_Digital_Logo_stacked.svg — the full
+  wordmark is illegible at 16px. White mark on the brand green (#0e4938) reads
+  far better in a tab strip than a thin glyph on transparency.
+
+  The mark's bounding box in the source artwork is x 395.59, y 181.10,
+  w 288.82, h 144.46; the transform below scales and centres that inside 512².
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="NOKAS">
+  <rect width="512" height="512" rx="96" fill="#0e4938"/>
+  <g fill="#ffffff" transform="translate(-379.71 -42.22) scale(1.1772)">
+    <path d="M421.47,303.11l-25.88-25.88,77.82-77.82c11.81-11.81,27.56-18.31,44.34-18.31s32.53,6.5,44.34,18.31l26.04,26.04-25.88,25.88-26.04-26.04c-4.9-4.9-11.45-7.59-18.46-7.59s-13.56,2.7-18.46,7.59l-77.82,77.82Z"/>
+    <path d="M562.25,325.56c-16.06,0-32.11-6.11-44.34-18.34l-26.04-26.04,25.88-25.88,26.04,26.04c4.9,4.9,11.45,7.59,18.46,7.59s13.56-2.7,18.46-7.59l77.82-77.82,25.88,25.88-77.82,77.82c-12.23,12.23-28.28,18.34-44.34,18.34Z"/>
+  </g>
+</svg>

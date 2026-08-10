@@ -1,30 +1,57 @@
-import CodeBlock from "../../../components/ui/CodeBlock";
-import SectionLayout from "../../../components/ui/SectionLayout";
+import { useEffect } from "react";
+import { Badge, Callout, CodeBlock, InlineCode, JumpNav, PageHeader, SectionHeading, Table } from "@/components/ui";
+import { RATE_LIMIT } from "@/config/environments";
+
+const jumpItems = [
+  { id: "business", label: "Business logic" },
+  { id: "cancellation", label: "Cancellation" },
+  { id: "counting", label: "Counting result" },
+  { id: "auth", label: "Authentication" },
+  { id: "rate", label: "Rate limiting" },
+  { id: "codes", label: "Status codes" },
+];
+
+const statusCodes: { code: string; tone: "green" | "amber" | "red"; body: string }[] = [
+  { code: "200 OK", tone: "green", body: "Request was successful." },
+  { code: "201 Created", tone: "green", body: "Bag registered; a Location header points to the new record." },
+  { code: "400 Bad Request", tone: "amber", body: "Invalid or missing data fields." },
+  { code: "401 Unauthorized", tone: "amber", body: "Invalid or missing access token." },
+  { code: "404 Not Found", tone: "amber", body: "Requested bag or resource not found." },
+  { code: "409 Conflict", tone: "amber", body: "Duplicate bag, or a logical constraint was violated." },
+  { code: "429 Too Many Requests", tone: "red", body: "Rate limit exceeded." },
+  { code: "500 Internal Server Error", tone: "red", body: "Unexpected server-side failure." },
+  { code: "503 Service Unavailable", tone: "red", body: "A downstream system is temporarily unreachable." },
+];
 
 export default function ErrorsSection() {
+  useEffect(() => {
+    document.title = "API Guide | Errors";
+  }, []);
+
   return (
-    <SectionLayout
-      id="error-handling"
-      title="Error Handling & Logging"
-      subtitle="How our API communicates and traces errors clearly"
-    >
-      <div className="space-y-10 text-sm text-gray-800">
+    <section className="space-y-8">
+      <PageHeader
+        eyebrow="API Guide"
+        title="Error handling & logging"
+        lead="Every error returns a meaningful HTTP status together with a correlation ID, so a failure can always be traced back to a specific request."
+      >
+        <JumpNav items={jumpItems} />
+      </PageHeader>
 
+      {/* ---------------- Business logic ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="business" icon="📦">
+          Business logic errors
+        </SectionHeading>
 
-        {/* 1. Business Logic Errors */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">
-            1. Business Logic Errors
-          </h3>
-          <p>
-            Domain-level logic errors such as duplicate bags, missing data, or invalid states return meaningful HTTP
-            codes like <code>400 Bad Request</code>, <code>404 Not Found</code>, or <code>409 Conflict</code>.
-          </p>
+        <p className="text-sm leading-relaxed text-gray-600">
+          Domain-level problems — duplicate bags, missing data, invalid states — return{" "}
+          <InlineCode>400</InlineCode>, <InlineCode>404</InlineCode> or <InlineCode>409</InlineCode>.
+        </p>
 
-          <h4 className="mt-4 font-semibold text-[#014737]">Example 1: Bag Already Exists (409 Conflict)</h4>
-          <CodeBlock
-            language="json"
-            code={`{
+        <CodeBlock
+          label="409 Conflict — bag already exists"
+          code={`{
   "customerRefNumber": "5790002334764",
   "bagNumber": "34567890",
   "description": "Bag 34567890 already exists and cannot be re-registered.",
@@ -32,14 +59,11 @@ export default function ErrorsSection() {
   "bagLifecycleId": "171349e2-6aa3-424e-a708-20cc94f03ae2",
   "requestCorrelationId": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbG"
 }`}
-          />
+        />
 
-          <h4 className="mt-4 font-semibold text-[#014737]">
-            Example 2: Missing Required Field – TotalOrderAmount (400 Bad Request)
-          </h4>
-          <CodeBlock
-            language="json"
-            code={`{
+        <CodeBlock
+          label="400 Bad Request — missing totalOrderAmount"
+          code={`{
   "errors": {
     "BagRegistration.TotalOrderAmount": [
       "totalOrderAmount is required when registrationType is NOK."
@@ -50,14 +74,11 @@ export default function ErrorsSection() {
   "status": 400,
   "traceId": "00-2791ac1a7f81eaeb75c20b102e4e694d-2bdcf9c47fceb5b5-00"
 }`}
-          />
+        />
 
-          <h4 className="mt-4 font-semibold text-[#014737]">
-            Example 3: Missing RegistrationType Field (400 Bad Request)
-          </h4>
-          <CodeBlock
-            language="json"
-            code={`{
+        <CodeBlock
+          label="400 Bad Request — missing registrationType"
+          code={`{
   "errors": {
     "BagRegistration.RegistrationType": [
       "The RegistrationType field is required."
@@ -68,38 +89,35 @@ export default function ErrorsSection() {
   "status": 400,
   "traceId": "00-cff96ea89b5e9c73150f403434027a85-f021792aec19711c-00"
 }`}
-          />
+        />
 
-          <h4 className="mt-4 font-semibold text-[#014737]">
-            Example 4: Bag Not Found during Registration GET (404 Not Found)
-          </h4>
-          <CodeBlock
-            language="json"
-            code={`{
+        <CodeBlock
+          label="404 Not Found — bag does not exist"
+          code={`{
   "customerRefNumber": "NA",
   "bagNumber": "NA",
-  "description": "No bag found with the BagNumber: 3456789234 for this client with Id: 1a732120-1149-4d97-98b5-d454d144b383.",
+  "description": "No bag found with the BagNumber: 3456789234 for this client.",
   "registrationStatus": "NA",
   "bagLifecycleId": "NA",
   "requestCorrelationId": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbf"
 }`}
-          />
-        </div>
+        />
+      </div>
 
-        {/* 2. Cancellation Errors */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">2. Cancellation Errors</h3>
-          <p>
-            Cancellation operations validate the lifecycle of the bag. Errors occur when cancellation is requested for
-            invalid or already processed bags.
-          </p>
+      {/* ---------------- Cancellation ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="cancellation" icon="🚫">
+          Cancellation errors
+        </SectionHeading>
 
-          <h4 className="mt-4 font-semibold text-[#014737]">
-            Example 1: Bag Already Processed (400 Bad Request)
-          </h4>
-          <CodeBlock
-            language="json"
-            code={`{
+        <p className="text-sm leading-relaxed text-gray-600">
+          Cancellation validates the bag's lifecycle stage. A bag can only be cancelled before it
+          has been collected for transport.
+        </p>
+
+        <CodeBlock
+          label="400 Bad Request — already processed"
+          code={`{
   "customerRefNumber": "5790002334764",
   "bagNumber": "34567894",
   "description": "Bag already processed and cannot be cancelled at this stage.",
@@ -107,115 +125,113 @@ export default function ErrorsSection() {
   "bagLifecycleId": "657bdf7b-e8cc-45be-92a1-d08032f5316f",
   "requestCorrelationId": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbf"
 }`}
-          />
+        />
 
-          <h4 className="mt-4 font-semibold text-[#014737]">
-            Example 2: Bag Not Registered (404 Not Found)
-          </h4>
-          <CodeBlock
-            language="json"
-            code={`{
+        <CodeBlock
+          label="404 Not Found — bag not registered"
+          code={`{
   "customerRefNumber": "NA",
   "bagNumber": "NA",
-  "description": "No bag found with the BagNumber: 34567894456 for this client with Id: 1a732120-1149-4d97-98b5-d454d144b383.",
+  "description": "No bag found with the BagNumber: 34567894456 for this client.",
   "registrationStatus": "NA",
   "bagLifecycleId": "NA",
   "requestCorrelationId": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbf"
 }`}
-          />
-        </div>
+        />
+      </div>
 
-        {/* 3. Counting Result Errors */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">
-            3. Counting Result Errors
-          </h3>
-          <p>
-            When attempting to fetch counting results for bags that do not exist or are not registered, a{" "}
-            <code>404 Not Found</code> is returned.
-          </p>
-          <CodeBlock
-            language="json"
-            code={`{
+      {/* ---------------- Counting result ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="counting" icon="📊">
+          Counting result errors
+        </SectionHeading>
+
+        <p className="text-sm leading-relaxed text-gray-600">
+          Requesting a counting result for a bag that does not exist, or is not registered to your
+          account, returns <InlineCode>404 Not Found</InlineCode>.
+        </p>
+
+        <CodeBlock
+          label="404 Not Found"
+          code={`{
   "customerRefNumber": "NA",
   "bagNumber": "NA",
-  "description": "No bag found with the BagNumber: 345678912334 for this client with Id: 1a732120-1149-4d97-98b5-d454d144b383.",
+  "description": "No bag found with the BagNumber: 345678912334 for this client.",
   "registrationStatus": "NA",
   "bagLifecycleId": "NA",
   "requestCorrelationId": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbf"
 }`}
-          />
-        </div>
+        />
+      </div>
 
-        {/* 4. Authentication & Authorization */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">
-            4. Authentication & Authorization
-          </h3>
-          <p>
-            If your token is missing, invalid, or expired, the API will return a <code>401 Unauthorized</code> response.
-            Ensure that your token is refreshed and sent in the request header.
-          </p>
-          <CodeBlock
-            language="json"
-            code={`{
+      {/* ---------------- Auth ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="auth" icon="🔐">
+          Authentication &amp; authorisation
+        </SectionHeading>
+
+        <p className="text-sm leading-relaxed text-gray-600">
+          A missing, invalid or expired token returns <InlineCode>401 Unauthorized</InlineCode>.
+          Refresh the token and send it in the <InlineCode>Authorization</InlineCode> header.
+        </p>
+
+        <CodeBlock
+          label="401 Unauthorized"
+          code={`{
   "statusCode": 401,
   "message": "Unauthorized"
 }`}
-          />
-        </div>
+        />
+      </div>
 
-        {/* 5. Rate Limiting */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">5. Rate Limiting</h3>
-          <p>
-            To maintain system stability and prevent abuse, the API enforces a rate limit of{" "}
-            <strong>200 requests per 60 seconds</strong>. Exceeding this limit triggers a <code>429 Too Many Requests</code> response.
-          </p>
-          <CodeBlock
-            language="json"
-            code={`{
+      {/* ---------------- Rate limiting ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="rate" icon="⏱️">
+          Rate limiting
+        </SectionHeading>
+
+        <p className="text-sm leading-relaxed text-gray-600">
+          To protect system stability the gateway enforces a per-application rate limit. Exceeding it
+          returns <InlineCode>429 Too Many Requests</InlineCode>.
+        </p>
+
+        <Callout tone="info" title="Limit">
+          The gateway allows <strong>{RATE_LIMIT}</strong> per application. Build your client to
+          honour <InlineCode>429</InlineCode> responses with a backoff regardless — the limit may be
+          lowered temporarily in the test environment during trials.
+        </Callout>
+
+        <CodeBlock
+          label="429 Too Many Requests"
+          code={`{
   "statusCode": 429,
   "message": "Rate limit is exceeded. Try again in 58 seconds."
 }`}
-          />
-        </div>
-
-        {/* 6. Traceability */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">
-            6. Traceability with Correlation ID
-          </h3>
-          <p>
-            Every request can include an <code>X-Correlation-ID</code> header. This ID is returned in responses and logs,
-            helping trace requests end-to-end across distributed systems.
-          </p>
-        </div>
-
-        {/* 7. HTTP Status Overview */}
-        <div>
-          <h3 className="text-lg font-semibold text-[#014737]">
-            7. HTTP Status Code Overview
-          </h3>
-          <table className="w-full text-left text-sm border">
-            <thead>
-              <tr className="bg-gray-100">
-                <th className="p-2">HTTP Code</th>
-                <th className="p-2">Description</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr><td className="p-2">200 OK</td><td className="p-2">Request was successful</td></tr>
-              <tr><td className="p-2">400 Bad Request</td><td className="p-2">Invalid or missing data fields</td></tr>
-              <tr><td className="p-2">401 Unauthorized</td><td className="p-2">Invalid or missing access token</td></tr>
-              <tr><td className="p-2">404 Not Found</td><td className="p-2">Requested bag or resource not found</td></tr>
-              <tr><td className="p-2">409 Conflict</td><td className="p-2">Duplicate bag or logical constraint violation</td></tr>
-              <tr><td className="p-2">429 Too Many Requests</td><td className="p-2">Rate limit exceeded</td></tr>
-              <tr><td className="p-2">500 Internal Server Error</td><td className="p-2">Unexpected server-side failure</td></tr>
-            </tbody>
-          </table>
-        </div>
+        />
       </div>
-    </SectionLayout>
+
+      {/* ---------------- Status codes ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="codes" icon="📶">
+          HTTP status code overview
+        </SectionHeading>
+
+        <Table headers={["Code", "Description"]}>
+          {statusCodes.map((s) => (
+            <tr key={s.code}>
+              <td className="whitespace-nowrap px-3 py-2">
+                <Badge tone={s.tone}>{s.code}</Badge>
+              </td>
+              <td className="px-3 py-2 text-gray-700">{s.body}</td>
+            </tr>
+          ))}
+        </Table>
+
+        <Callout tone="info" title="Always capture the correlation ID">
+          Every response includes <InlineCode>requestCorrelationId</InlineCode>. Log it on your side
+          — when raising a support request it is the fastest way for NOKAS to find the exact call.
+        </Callout>
+      </div>
+    </section>
   );
 }

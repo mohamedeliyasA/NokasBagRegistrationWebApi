@@ -1,159 +1,124 @@
-import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
 import { useIsAuthenticated, useMsal } from "@azure/msal-react";
-import { useState } from "react";
+
+const navLinks = [
+  { label: "Customer onboarding", to: "/customer-onboarding" },
+  { label: "Products", to: "/product" },
+  { label: "API", to: "/swagger" },
+  { label: "Contact", to: "/contact" },
+  { label: "About us", to: "/about-us" },
+];
 
 export default function PublicHeader() {
   const navigate = useNavigate();
+  const location = useLocation();
   const isAuthenticated = useIsAuthenticated();
   const { instance } = useMsal();
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const handleLogoClick = () => {
-    navigate(isAuthenticated ? "/portal" : "/");
-  };
+  // Close the mobile menu whenever the route changes.
+  useEffect(() => {
+    setMenuOpen(false);
+  }, [location.pathname]);
 
   const handleSignIn = () => {
-    instance.loginRedirect();
+    if (isAuthenticated) {
+      navigate("/portal");
+      return;
+    }
+    instance.loginRedirect().catch((err) => console.error("Login redirect failed:", err));
   };
 
-  const handleMobileNavigate = (path: string) => {
-    navigate(path);
-    setMenuOpen(false);
-  };
+  const linkClass = ({ isActive }: { isActive: boolean }) =>
+    [
+      "relative py-1 transition-colors",
+      isActive
+        ? "text-white after:absolute after:inset-x-0 after:-bottom-0.5 after:h-0.5 after:rounded-full after:bg-brand-400"
+        : "text-white/75 hover:text-white",
+    ].join(" ");
 
   return (
-    <header className="w-full bg-[#013c2f] py-4 text-white text-sm">
-      <div className="max-w-7xl mx-auto flex items-center justify-between px-4">
-        {/* Logo and Title */}
+    <header className="sticky top-0 z-40 w-full border-b border-white/10 bg-brand-900/95 text-sm backdrop-blur supports-[backdrop-filter]:bg-brand-900/80">
+      <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3">
+        {/* Logo — the official wordmark already reads "NOKAS", so no duplicate text. */}
         <button
-          onClick={handleLogoClick}
-          className="flex items-center gap-2 focus:outline-none"
-          aria-label="Go to home"
+          onClick={() => navigate(isAuthenticated ? "/portal" : "/")}
+          className="flex shrink-0 items-center rounded focus:outline-none focus:ring-2 focus:ring-brand-300"
+          aria-label="NOKAS — go to home"
         >
-          <img src="/logo.png" alt="NOKAS Logo" className="h-8" />
-          <div className="flex flex-col leading-tight text-left">
-            <span className="text-base font-semibold text-white">NOKAS</span>
-            <span className="text-sm text-gray-300">Payment solutions</span>
-          </div>
+          <img
+            src="/Nokas_Digital_Logo_white.png"
+            alt="NOKAS"
+            width={906}
+            height={136}
+            className="h-7 w-auto sm:h-8"
+          />
         </button>
 
-        {/* Desktop Navigation */}
-        <nav className="hidden md:flex gap-5 font-medium">
-          <a href="/customer-onboarding" className="hover:underline">
-            Customer Onboarding
-          </a>
-          <a href="/product" className="hover:underline">
-            Products
-          </a>
-
-          <a href="/contact" className="hover:underline">
-            Contact
-          </a>
-          <a href="/about-us" className="hover:underline">
-            About us
-          </a>
+        {/* Desktop nav */}
+        <nav className="hidden items-center gap-6 font-medium md:flex">
+          {navLinks.map((l) => (
+            <NavLink key={l.to} to={l.to} className={linkClass}>
+              {l.label}
+            </NavLink>
+          ))}
         </nav>
 
-        {/* Right-side controls */}
-        <div className="hidden md:flex items-center gap-4">
-          <button
-            className="text-white hover:text-gray-300"
-            aria-label="Search"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-5 w-5"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M21 21l-4.35-4.35M17 11a6 6 0 11-12 0 6 6 0 0112 0z"
-              />
-            </svg>
-          </button>
+        {/* Desktop CTA */}
+        <div className="hidden md:block">
           <button
             onClick={handleSignIn}
-            className="bg-green-400 hover:bg-green-300 text-black font-semibold px-4 py-1.5 rounded-full transition"
+            className="rounded-full bg-brand-400 px-5 py-1.5 font-semibold text-brand-900 transition hover:bg-brand-300 focus:outline-none focus:ring-2 focus:ring-brand-300 focus:ring-offset-2 focus:ring-offset-brand-900"
           >
-            Login
+            {isAuthenticated ? "Go to portal" : "Login"}
           </button>
-          <div className="flex items-center gap-1 font-medium">
-            <span>EN</span>
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              className="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M12 3c4.97 0 9 4.03 9 9s-4.03 9-9 9-9-4.03-9-9 4.03-9 9-9z"
-              />
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M2.05 12h19.9M12 2.05v19.9M4.22 4.22l15.56 15.56"
-              />
-            </svg>
-          </div>
         </div>
 
-        {/* Mobile Hamburger Icon */}
+        {/* Mobile toggle */}
         <button
-          onClick={() => setMenuOpen(!menuOpen)}
-          className="md:hidden text-white focus:outline-none"
+          onClick={() => setMenuOpen((v) => !v)}
+          className="rounded p-1 text-white focus:outline-none focus:ring-2 focus:ring-brand-400 md:hidden"
+          aria-expanded={menuOpen}
+          aria-controls="mobile-nav"
+          aria-label={menuOpen ? "Close menu" : "Open menu"}
         >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            className="h-6 w-6"
-            fill="none"
-            viewBox="0 0 24 24"
-            stroke="currentColor"
-            strokeWidth="2"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M4 6h16M4 12h16M4 18h16"
-            />
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="h-6 w-6">
+            {menuOpen ? (
+              <path d="M6 6l12 12M18 6L6 18" strokeLinecap="round" />
+            ) : (
+              <path d="M4 6h16M4 12h16M4 18h16" strokeLinecap="round" />
+            )}
           </svg>
         </button>
       </div>
 
-      {/* Mobile Menu */}
+      {/* Mobile nav */}
       {menuOpen && (
-        <div className="md:hidden px-4 mt-2">
-          <nav className="flex flex-col gap-2 bg-[#014737] p-4 rounded shadow-lg">
-            {[
-              { label: "CustomerOnboarding", to: "/customer-onboarding" },
-              { label: "Products", to: "/product" },
-
-              { label: "Contact", to: "/contact" },
-              { label: "About us", to: "/about-us" },
-            ].map((link) => (
-              <button
-                key={link.to}
-                onClick={() => handleMobileNavigate(link.to)}
-                className="text-left hover:underline"
-              >
-                {link.label}
-              </button>
+        <nav id="mobile-nav" className="border-t border-white/10 bg-brand-900 px-4 pb-4 pt-2 md:hidden">
+          <ul className="flex flex-col">
+            {navLinks.map((l) => (
+              <li key={l.to}>
+                <NavLink
+                  to={l.to}
+                  className={({ isActive }) =>
+                    `block rounded px-2 py-2.5 font-medium transition ${
+                      isActive ? "bg-white/10 text-white" : "text-white/80 hover:bg-white/5 hover:text-white"
+                    }`
+                  }
+                >
+                  {l.label}
+                </NavLink>
+              </li>
             ))}
-            <button
-              onClick={handleSignIn}
-              className="mt-3 bg-green-400 hover:bg-green-300 text-black font-semibold px-4 py-1.5 rounded-full transition"
-            >
-              Login
-            </button>
-          </nav>
-        </div>
+          </ul>
+          <button
+            onClick={handleSignIn}
+            className="mt-3 w-full rounded-full bg-brand-400 px-4 py-2 font-semibold text-brand-900 transition hover:bg-brand-300"
+          >
+            {isAuthenticated ? "Go to portal" : "Login"}
+          </button>
+        </nav>
       )}
     </header>
   );

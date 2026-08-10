@@ -140,9 +140,14 @@ builder.Services.Configure<ApiBehaviorOptions>(options =>
             Exception = string.Join(" | ", errorMessages)
         };
 
+        var logger = context.HttpContext.RequestServices.GetRequiredService<ILogger<Program>>();
+        logger.LogWarning("CorrelationId: {CorrelationId} - Model validation failed: {Errors}",
+            correlationId, error.Exception);
+
         return new BadRequestObjectResult(error);
     };
 });
+
 
 builder.Services.AddEndpointsApiExplorer();
 

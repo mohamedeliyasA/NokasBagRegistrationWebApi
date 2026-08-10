@@ -22,7 +22,12 @@ namespace Nokas.CashMgmt.BagRegistration.API.Models
 
         // Cosmos's reserved expiry field (seconds). Only set once Published, so a dispatcher
         // hiccup can never cause a not-yet-sent event to expire before it's actually delivered.
-        [JsonProperty("ttl")]
+        //
+        // NullValueHandling.Ignore is REQUIRED, not cosmetic: `ttl` is a reserved Cosmos
+        // property that must be a valid integer whenever it is present. Emitting "ttl": null
+        // on a Pending record makes Cosmos reject the whole document with 400 BadRequest,
+        // which fails the entire transactional batch and therefore every POST.
+        [JsonProperty("ttl", NullValueHandling = NullValueHandling.Ignore)]
         public int? Ttl { get; set; }
 
         // The bagreg container has a unique-key policy on /BagRegistration/BagNumber. A document

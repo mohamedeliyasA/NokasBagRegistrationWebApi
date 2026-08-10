@@ -10,6 +10,10 @@ namespace Nokas.CashMgmt.BagRegistration.API.Configuration
         {
             var postmanUrl = configuration["Swagger:PostmanCollectionUrl"];
 
+            // Surfaced in the Swagger header so it is always obvious which
+            // environment and which build you are looking at.
+            var environmentName = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Unknown";
+
             var postmanLinkHtml = !string.IsNullOrWhiteSpace(postmanUrl)
                 ? $@"<a href=""{postmanUrl}"" target=""_blank"">📥 Download Postman Collection</a>"
                 : @"<em>Postman collection URL is not configured.</em>";
@@ -25,7 +29,7 @@ namespace Nokas.CashMgmt.BagRegistration.API.Configuration
 $@"Secure bag registration API.<br/>
 {postmanLinkHtml}<br/><br/>
 To access and try the API methods, click the <strong>Authorize</strong> button below and provide a valid token.<br/><br/>
-<small>Build: {BuildInfo.Stamp}</small>",
+<small>Environment: {environmentName} &nbsp;|&nbsp; Build: {BuildInfo.Stamp}</small>",
                     Contact = new OpenApiContact
                     {
                         Name = "Nokas Support",

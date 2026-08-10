@@ -24,7 +24,7 @@ public sealed class ValidateBagNumberFunction(IBagStatusService bagStatusService
             var exists = await bagStatusService.ValidateBagNumberAsync(bagNumber, context.CancellationToken);
 
             var response = req.CreateResponse(HttpStatusCode.OK);
-            await response.WriteAsJsonAsync(new { exists, correlationId });
+            await response.WriteAsJsonAsync(new { exists, correlationId, buildStamp = BuildInfo.Stamp });
             return response;
         }
         catch (Exception ex)
@@ -32,7 +32,7 @@ public sealed class ValidateBagNumberFunction(IBagStatusService bagStatusService
             logger.LogCritical(ex, "CorrelationId: {CorrelationId} - SQL error validating bag {BagNumber}", correlationId, bagNumber);
 
             var errorResponse = req.CreateResponse(HttpStatusCode.ServiceUnavailable);
-            await errorResponse.WriteAsJsonAsync(new { message = "Database error occurred", correlationId });
+            await errorResponse.WriteAsJsonAsync(new { message = "Database error occurred", correlationId, buildStamp = BuildInfo.Stamp });
             return errorResponse;
         }
     }

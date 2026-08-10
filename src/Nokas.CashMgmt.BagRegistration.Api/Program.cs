@@ -137,7 +137,7 @@ builder.Services.AddSingleton(serviceProvider =>
 #region builder services
 builder.Services.AddApiAuthentication(builder.Configuration);
 builder.Services.AddApiAuthorizationPolicies();
-builder.Services.AddSwaggerDocumentation();
+builder.Services.AddSwaggerDocumentation(builder.Configuration);
 
 builder.Services.AddControllers(options =>
 {
@@ -184,6 +184,15 @@ builder.Services.AddScoped<IBagNumberCacheRepository, CosmosBagNumberCacheReposi
 builder.Services.AddSingleton<IPayloadArchiveQueue, InMemoryPayloadArchiveQueue>();
 builder.Services.AddHostedService<PayloadArchiverBackgroundService>();
 builder.Services.AddHostedService<OutboxDispatcherBackgroundService>();
+builder.Services.AddHttpClient<IBagStatusFunctionClient, BagStatusFunctionClient>(client =>
+{
+    client.Timeout = Timeout.InfiniteTimeSpan;
+})
+.AddStandardResilienceHandler(resilience =>
+{
+    resilience.AttemptTimeout.Timeout = TimeSpan.FromSeconds(8);
+    resilience.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(10);
+});
 
 #endregion
 
@@ -192,6 +201,19 @@ var app = builder.Build();
 #region Middleware
 
 app.UseHttpsRedirection();
+
+// Surfaces the deployed build on every response so a deployment can be verified
+// from the outside (the App Service itself only accepts traffic from APIM/Front Door).
+app.Use(async (context, next) =>
+{
+    context.Response.OnStarting(() =>
+    {
+        context.Response.Headers["X-Build-Stamp"] = BuildInfo.Stamp;
+        return Task.CompletedTask;
+    });
+
+    await next();
+});
 
 app.UseMiddleware<Nokas.CashMgmt.BagRegistration.Api.Middleware.CorrelationMiddleware>();
 app.UseMiddleware<Nokas.CashMgmt.BagRegistration.Api.Middleware.ExceptionHandlingMiddleware>();

@@ -9,4 +9,18 @@ public interface IBagRegistrationRepository
         BagRegistrationDocument document,
         OutboxMessageDocument outboxMessage,
         CancellationToken cancellationToken);
+
+    Task<Result<BagRegistrationDocument>> GetByBagNumberForClientAsync(
+        string bagNumber,
+        string clientId,
+        CancellationToken cancellationToken);
+
+    Task<Result<BagRegistrationDocument>> UpdateAsync(
+        BagRegistrationDocument document,
+        CancellationToken cancellationToken);
+
+    Task<Result<BagRegistrationDocument>> UpdateWithOutboxAsync(
+        BagRegistrationDocument document,
+        OutboxMessageDocument outboxMessage,
+        CancellationToken cancellationToken);
 }

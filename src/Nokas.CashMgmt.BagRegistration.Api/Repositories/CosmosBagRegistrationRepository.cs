@@ -63,4 +63,62 @@ public sealed class CosmosBagRegistrationRepository : IBagRegistrationRepository
 
         return Error.Internal("ERR_COSMOS_GENERIC", "A database error occurred while processing your request.");
     }
+
+    public async Task<Result<BagRegistrationDocument>> GetByBagNumberForClientAsync(
+        string bagNumber,
+        string clientId,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var response = await _container.ReadItemAsync<BagRegistrationDocument>(
+                bagNumber, new PartitionKey(clientId), cancellationToken: cancellationToken);
+            return Result<BagRegistrationDocument>.Success(response.Resource);
+        }
+        catch (CosmosException ex) when (ex.StatusCode == HttpStatusCode.NotFound)
+        {
+            return Error.NotFound("ERR_BAG_NOT_FOUND", $"No bag found with bag number '{bagNumber}' for this client.");
+        }
+    }
+
+    public async Task<Result<BagRegistrationDocument>> UpdateAsync(
+        BagRegistrationDocument document,
+        CancellationToken cancellationToken)
+    {
+        await _container.UpsertItemAsync(document, new PartitionKey(document.ClientId), cancellationToken: cancellationToken);
+        return Result<BagRegistrationDocument>.Success(document);
+    }
+
+    public async Task<Result<BagRegistrationDocument>> UpdateWithOutboxAsync(
+        BagRegistrationDocument document,
+        OutboxMessageDocument outboxMessage,
+        CancellationToken cancellationToken)
+    {
+        outboxMessage.ClientId = document.ClientId;
+
+        var batch = _container.CreateTransactionalBatch(new PartitionKey(document.ClientId))
+            .UpsertItem(document)
+            .CreateItem(outboxMessage);
+
+        using var response = await batch.ExecuteAsync(cancellationToken);
+
+        if (response.IsSuccessStatusCode)
+        {
+            return Result<BagRegistrationDocument>.Success(document);
+        }
+
+        var perOperation = new List<string>();
+        for (var i = 0; i < response.Count; i++)
+        {
+            var opName = i == 0 ? "bagDocument" : "outboxMessage";
+            perOperation.Add($"[{i}] {opName} => {(int)response[i].StatusCode} {response[i].StatusCode}");
+        }
+
+        _logger.LogCritical(
+            "Transactional batch failed with status {StatusCode} for BagNumber: {BagNumber}. ErrorMessage: {ErrorMessage}. Operations: {Operations}. ActivityId: {ActivityId}",
+            response.StatusCode, document.BagRegistration.BagNumber, response.ErrorMessage ?? "(none)",
+            string.Join(" | ", perOperation), response.ActivityId);
+
+        return Error.Internal("ERR_COSMOS_GENERIC", "A database error occurred while processing your request.");
+    }
 }

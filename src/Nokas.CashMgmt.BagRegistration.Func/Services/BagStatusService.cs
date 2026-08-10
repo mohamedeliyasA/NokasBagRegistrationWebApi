@@ -1,16 +1,21 @@
+using System.Data;
 using Dapper;
 using Microsoft.Data.SqlClient;
+using Nokas.CashMgmt.Shared.Contracts;
 
 namespace Nokas.CashMgmt.BagRegistration.Func.Services;
 
 public sealed class BagStatusService : IBagStatusService
 {
     private readonly string _cacheDbConnectionString;
+    private readonly string _nattsafeConnectionString;
 
     public BagStatusService()
     {
         _cacheDbConnectionString = Environment.GetEnvironmentVariable("NokasMwCacheDBConnString")
             ?? throw new InvalidOperationException("Missing 'NokasMwCacheDBConnString' environment variable.");
+        _nattsafeConnectionString = Environment.GetEnvironmentVariable("NattsafeSQLDBConnString")
+            ?? throw new InvalidOperationException("Missing 'NattsafeSQLDBConnString' environment variable.");
     }
 
     public async Task<bool> ValidateBagNumberAsync(string bagNumber, CancellationToken cancellationToken)
@@ -43,4 +48,28 @@ public sealed class BagStatusService : IBagStatusService
     }
 
     private sealed record RegistrationRow(string BagNumber, DateTime CreatedAt);
+
+    public async Task<BagStatusRecord?> GetStatusAsync(string bagNumber, CancellationToken cancellationToken)
+    {
+        await using var connection = new SqlConnection(_nattsafeConnectionString);
+        await connection.OpenAsync(cancellationToken);
+
+        var parameters = new DynamicParameters();
+        parameters.Add("@BagNumber", bagNumber, DbType.String, ParameterDirection.Input, size: 50);
+        parameters.Add("@OutStatusCode", dbType: DbType.Int32, direction: ParameterDirection.Output);
+
+        var commandDefinition = new CommandDefinition(
+            "dbo.api_CancelBagIfRegistered", parameters, commandType: CommandType.StoredProcedure,
+            cancellationToken: cancellationToken);
+
+        var result = await connection.QueryFirstOrDefaultAsync<BagStatusRecord>(commandDefinition);
+        var outStatusCode = parameters.Get<int?>("@OutStatusCode") ?? -1;
+
+        return outStatusCode switch
+        {
+            1 => null,
+            0 or 2 or 3 => result,
+            _ => throw new InvalidOperationException($"Unexpected OutStatusCode {outStatusCode} from api_CancelBagIfRegistered.")
+        };
+    }
 }

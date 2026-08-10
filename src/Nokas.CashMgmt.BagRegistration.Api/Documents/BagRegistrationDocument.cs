@@ -17,7 +17,7 @@ public sealed class BagRegistrationDocument
     public required string CorrelationId { get; init; }
 
     [JsonPropertyName("registrationStatus")]
-    public required string RegistrationStatus { get; init; }
+    public required string RegistrationStatus { get; set; }
 
     [JsonPropertyName("bagRegistration")]
     public required BagRegistrationDetail BagRegistration { get; init; }
@@ -44,7 +44,7 @@ public sealed class BagRegistrationDetail
     public required string BagNumber { get; init; }
 
     [JsonPropertyName("actionFlag")]
-    public string ActionFlag { get; init; } = "Create";
+    public string ActionFlag { get; set; } = "Create";
 
     [JsonPropertyName("registeredBy")]
     public required string RegisteredBy { get; init; }

@@ -4,15 +4,19 @@ namespace Nokas.CashMgmt.BagRegistration.Api.Configuration;
 
 public static class SwaggerConfig
 {
-    public static void AddSwaggerDocumentation(this IServiceCollection services)
+    public static void AddSwaggerDocumentation(this IServiceCollection services, IConfiguration configuration)
     {
+        var environmentName = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Unknown";
+
         services.AddSwaggerGen(c =>
         {
             c.SwaggerDoc("v1", new OpenApiInfo
             {
                 Title = "NOKAS Bag Registration API (v2)",
                 Version = "v1",
-                Description = "Secure bag registration API. Click Authorize and paste a bearer token (no 'Bearer ' prefix) to try requests.",
+                Description =
+                    "Secure bag registration API. Click Authorize and paste a bearer token (no 'Bearer ' prefix) to try requests.<br/><br/>" +
+                    $"<small>Environment: {environmentName} &nbsp;|&nbsp; Build: {BuildInfo.Stamp}</small>",
                 Contact = new OpenApiContact
                 {
                     Name = "Nokas Support",

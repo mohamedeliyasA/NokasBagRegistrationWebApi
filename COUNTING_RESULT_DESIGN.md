@@ -29,7 +29,7 @@ Everything else in the base design remains **locked as-is** — restated operati
 
 - **Timer Function** (every 30 min, VNet-integrated, config `CountingResults:Sync:*`) calls read-only SP `usp_CountingResult_FetchChanges`:
   - Delta mode: rows whose `StatusTracking.dtmDate` > watermark − 10-min overlap (config), joined to `Nattsafearkiv` for full record state, restricted to `vchCustomer_id` values present in `NokasExternalCustomerMapping` (only onboarded customers, resolved **at sync time**).
-  - Backfill mode: same SP, driven by `(customerNumber, fromDate)` — **one shared code path** for onboarding backfill, initial load, and resync. `BackfillFromDate` column added to the mapping table (allowed — it lives in `Integrations.SN.CMS`, not Nattsafe), else global default window (config `CountingResults:Backfill:DefaultMonths`).
+  - Backfill mode: same SP, driven by `(customerNumber, fromDate)` — **one shared code path** for onboarding backfill, initial load, and resync. `BackfillFromDate` column added to the mapping table (allowed — it lives in `BizTalk_Helper` (moved here 2026-08-10, was `Integrations.SN.CMS`), not Nattsafe), else global default window (config `CountingResults:Backfill:DefaultMonths`).
 - Second watermark on `NokasExternalCustomerMapping.CreatedAt` auto-backfills newly onboarded customers.
 - Idempotent upserts into Cosmos; batched (~500 rows/page); **a failed run never advances a watermark**; watermark state = single `sync-state` doc `{ statusTrackingWatermark, mappingWatermark, lastSuccessfulRunUtc }` in the counting-result container. `lastSuccessfulRunUtc` feeds `dataAsOf` on every API response.
 - `lastUpdatedAt` per document = max `StatusTracking.dtmDate` seen for that record (not sync wall-clock unless no tracking row).
@@ -71,7 +71,7 @@ Everything else in the base design remains **locked as-is** — restated operati
 |---|---|---|
 | `usp_CountingResult_FetchChanges` (delta + backfill modes) | Nattsafe DB (new proc — allowed; only *table* changes are barred) | Read-only, NOLOCK consistent with existing procs; selects Nattsafearkiv fields + StatusTracking history slice |
 | Nonclustered index `IX_StatusTracking_dtmDate` on `(dtmDate) INCLUDE (intId, intStatus)` | `Nattsafe.dbo.StatusTracking` | A5; verify with DBA before creation window; no consumer impact |
-| `BackfillFromDate` column | `Integrations.SN.CMS.dbo.NokasExternalCustomerMapping` | Nullable; absent → global default window |
+| `BackfillFromDate` column | `BizTalk_Helper.dbo.NokasExternalCustomerMapping` | Nullable; absent → global default window |
 
 ## 8. Telemetry & alerts
 

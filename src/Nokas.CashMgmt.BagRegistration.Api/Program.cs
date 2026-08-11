@@ -95,6 +95,11 @@ builder.Services.AddOptions<AzureAdOptions>()
     .ValidateDataAnnotations()
     .ValidateOnStart();
 
+builder.Services.AddOptions<CountingResultsOptions>()
+    .Bind(builder.Configuration.GetSection("CountingResults"))
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
+
 #endregion
 
 #region Cosmos DB
@@ -181,6 +186,9 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddHealthChecks();
 builder.Services.AddScoped<IBagRegistrationRepository, CosmosBagRegistrationRepository>();
 builder.Services.AddScoped<IBagNumberCacheRepository, CosmosBagNumberCacheRepository>();
+builder.Services.AddScoped<ICountingResultRepository, CosmosCountingResultRepository>();
+builder.Services.AddDataProtection();
+builder.Services.AddSingleton<IContinuationTokenService, ContinuationTokenService>();
 builder.Services.AddSingleton<IPayloadArchiveQueue, InMemoryPayloadArchiveQueue>();
 builder.Services.AddHostedService<PayloadArchiverBackgroundService>();
 builder.Services.AddHostedService<OutboxDispatcherBackgroundService>();

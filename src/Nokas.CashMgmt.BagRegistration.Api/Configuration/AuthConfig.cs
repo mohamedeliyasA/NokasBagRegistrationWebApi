@@ -8,6 +8,9 @@ public static class AuthConfig
     public const string RegistrationRolePolicy = "PartnerRegistrationAccess";
     public const string RegistrationRoleName = "cashbag.registration.access";
 
+    public const string CountingResultRolePolicy = "PartnerCountingResultRead";
+    public const string CountingResultRoleName = "cashbag.countingresult.read";
+
     public static void AddApiAuthentication(this IServiceCollection services, IConfiguration configuration)
     {
         var azureAd = configuration.GetSection("AzureAd").Get<AzureAdOptions>()
@@ -37,6 +40,8 @@ public static class AuthConfig
         {
             options.AddPolicy(RegistrationRolePolicy, policy =>
                 policy.RequireRole(RegistrationRoleName));
+            options.AddPolicy(CountingResultRolePolicy, policy =>
+                policy.RequireRole(CountingResultRoleName));
         });
     }
 }

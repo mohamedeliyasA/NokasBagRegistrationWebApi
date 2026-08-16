@@ -4,6 +4,9 @@ import { PROD_ENV, RATE_LIMIT, TEST_ENV } from "@/config/environments";
 
 const SWAGGER_UI = TEST_ENV.swaggerUi;
 const SWAGGER_JSON = TEST_ENV.swaggerJson;
+// Static asset served from public/ - see BagReg_PostmanCollection.json's own description
+// for how to fill in your client id/secret. Base URL inside it matches TEST_ENV.baseUrl.
+const POSTMAN_COLLECTION = "/BagReg_PostmanCollection.json";
 
 /** How long to wait for the iframe to load before offering a fallback. */
 const LOAD_TIMEOUT_MS = 8000;
@@ -77,6 +80,13 @@ export default function PublicSwagger() {
                 className="rounded-full border border-brand-300 bg-white px-5 py-2 text-sm font-semibold text-brand-800 transition hover:bg-brand-50"
               >
                 Download OpenAPI JSON
+              </a>
+              <a
+                href={POSTMAN_COLLECTION}
+                download
+                className="rounded-full border border-brand-300 bg-white px-5 py-2 text-sm font-semibold text-brand-800 transition hover:bg-brand-50"
+              >
+                Download Postman Collection
               </a>
             </div>
           </div>

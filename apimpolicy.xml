@@ -23,8 +23,8 @@
   var iss   = jwt?.Claims.GetValueOrDefault("iss","unknown-iss");
   return iss + "|" + appId;
 }" />
-        <rate-limit-by-key calls="10" renewal-period="60" counter-key="@((string)context.Variables["rateLimitKey"])" />
-        <set-backend-service base-url="https://api-nokas-bagreg-e5f9fdcxevatexh5.norwayeast-01.azurewebsites.net/" />
+        <rate-limit-by-key calls="100" renewal-period="60" counter-key="@((string)context.Variables["rateLimitKey"])" />
+        <set-backend-service base-url="https://api-nokas-bagreg-v2.azurewebsites.net/" />
     </inbound>
     <!-- Control if and how the requests are forwarded to services  -->
     <backend>

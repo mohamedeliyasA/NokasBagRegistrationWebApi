@@ -4,6 +4,8 @@ import { TEST_ENV } from "@/config/environments";
 
 const SWAGGER_URL = TEST_ENV.swaggerUi;
 const DEVELOPER_PORTAL_URL = "https://apim-avarn-dev-test.developer.azure-api.net/";
+// Static asset served from public/ - same file the public /swagger page links to.
+const POSTMAN_COLLECTION = "/BagReg_PostmanCollection.json";
 
 const LOAD_TIMEOUT_MS = 8000;
 
@@ -42,6 +44,13 @@ export default function SwaggerSection() {
           <SectionHeading id="swagger" icon="🧪">
             Interactive reference
           </SectionHeading>
+          <a
+            href={POSTMAN_COLLECTION}
+            download
+            className="inline-flex items-center gap-1.5 rounded-full border border-brand-300 bg-white px-4 py-1.5 text-xs font-semibold text-brand-800 transition hover:bg-brand-50"
+          >
+            📥 Download Postman Collection
+          </a>
         </div>
 
         <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-card">

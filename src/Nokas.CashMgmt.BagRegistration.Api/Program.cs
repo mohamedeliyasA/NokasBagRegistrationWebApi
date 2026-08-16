@@ -235,6 +235,7 @@ app.UseAuthorization();
 
 #region Swagger
 
+app.UseSwaggerRestrictions(app.Environment);
 app.UseSwagger();
 app.UseSwaggerUI(c =>
 {

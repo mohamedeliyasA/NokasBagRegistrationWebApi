@@ -11,6 +11,9 @@ const sections = [
   { id: "swagger", label: "Swagger", icon: "🧪" },
 ];
 
+// Static asset served from public/ - same file the public /swagger page links to.
+const POSTMAN_COLLECTION = "/BagReg_PostmanCollection.json";
+
 export default function GuideLayout() {
   return (
     <div className="flex h-full w-full gap-4">
@@ -39,6 +42,16 @@ export default function GuideLayout() {
               <span className="hidden sm:inline">{s.label}</span>
             </NavLink>
           ))}
+
+          <a
+            href={POSTMAN_COLLECTION}
+            download
+            title="Download Postman Collection"
+            className="mt-1 flex w-full items-center gap-2.5 rounded-lg border-t border-gray-100 p-2 pt-3 text-sm font-medium text-brand-700 transition hover:bg-brand-50 sm:justify-start"
+          >
+            <span className="text-base leading-none">📥</span>
+            <span className="hidden sm:inline">Postman Collection</span>
+          </a>
         </nav>
       </aside>
 

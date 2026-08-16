@@ -14,6 +14,20 @@ full narrative/history; this file is the distilled, ordered checklist.
   `corp-lz-prod-001`) **already exist but are not live** — created for testing, not yet the real prod
   path. Treat as scaffolding to finish, not a green field.
 - Every connection string / secret comes from Key Vault. Never a literal value in app settings, appsettings.json, or this file.
+- **Two separate app settings control Swagger's behavior — set both correctly on the prod App Service:**
+  - `ASPNETCORE_ENVIRONMENT` — controls the FDID access-control gate (blocks direct `*.azurewebsites.net`
+    access to `/swagger/*`, only real Front Door traffic gets through). Active whenever this is anything
+    other than `Development`. Set it to `Production` on the real prod App Service (matches the old v1
+    convention of running `Production` even on non-prod tiers) - or any non-`Development` value works
+    for this gate specifically.
+  - `Deployment:Tier` (config value, not an env var by convention but can be set as `Deployment__Tier` app
+    setting) — controls whether Swagger's "Try it out" can fire modifying requests (POST/PUT/DELETE).
+    **Must be set to exactly `Production`** on the real prod App Service or the modifying-operation block
+    never activates there, regardless of `ASPNETCORE_ENVIRONMENT`. On TEST this is `Test`, which
+    deliberately leaves Try-it-out open.
+  - These two used to be the same single check (`ASPNETCORE_ENVIRONMENT == "Production"`) - they were
+    split apart because TEST also runs `ASPNETCORE_ENVIRONMENT=Production` (to keep the FDID gate active),
+    which silently blocked Try-it-out in TEST too until this was split. Don't recombine them.
 
 ## 1. On-prem SQL — run in this order
 

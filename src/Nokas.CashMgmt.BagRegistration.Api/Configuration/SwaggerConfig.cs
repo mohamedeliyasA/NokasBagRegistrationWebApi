@@ -47,12 +47,15 @@ public static class SwaggerConfig
         });
     }
 
-    // Left off deliberately while v2 wasn't reachable through Front Door (everything would
-    // have 403'd since no request ever carried X-Azure-FDID). Now that APIM/Front Door route
-    // here, this needs to be active in Production the same way the old codebase does it.
+    // FDID check and the modifying-operation block are independent: FDID gates who can reach
+    // Swagger at all (active in every deployed environment), while the modifying-operation
+    // block follows Deployment:Tier specifically (Test allows Try-it-out, Production blocks
+    // it) - they used to share one IsProduction() gate, which meant TEST silently inherited
+    // the Production-only modifying-operation block too, since TEST also runs
+    // ASPNETCORE_ENVIRONMENT=Production.
     public static void UseSwaggerRestrictions(this IApplicationBuilder app, IWebHostEnvironment env)
     {
-        if (!env.IsProduction())
+        if (env.IsDevelopment())
             return;
 
         app.Use(async (context, next) =>
@@ -63,6 +66,7 @@ public static class SwaggerConfig
 
             var config = context.RequestServices.GetRequiredService<IConfiguration>();
             var allowedFdIds = config.GetSection("FrontDoor:AllowedIds").Get<string[]>() ?? [];
+            var isProductionTier = string.Equals(config["Deployment:Tier"], "Production", StringComparison.OrdinalIgnoreCase);
 
             var path = context.Request.Path.Value ?? string.Empty;
             var method = context.Request.Method;
@@ -92,7 +96,7 @@ public static class SwaggerConfig
             var isSwaggerReferer = referer.Contains("/swagger", StringComparison.OrdinalIgnoreCase);
             var isModifying = HttpMethods.IsPost(method) || HttpMethods.IsPut(method) || HttpMethods.IsDelete(method);
 
-            if (isSwaggerReferer && isModifying)
+            if (isSwaggerReferer && isModifying && isProductionTier)
             {
                 logger.LogWarning("Swagger UI attempted modifying operation. Method={Method}", method);
                 context.Response.StatusCode = StatusCodes.Status403Forbidden;

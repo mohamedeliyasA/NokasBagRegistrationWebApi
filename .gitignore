@@ -11,6 +11,7 @@
 out/
 artifacts/
 publish/
+publish_*/
 *.pubxml
 *.publishproj
 *.PublishSettings

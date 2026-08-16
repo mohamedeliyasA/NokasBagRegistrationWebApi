@@ -148,7 +148,7 @@
       "name": "Counting Result",
       "item": [
         {
-          "name": "List Counting Results",
+          "name": "List - Date Range Only",
           "protocolProfileBehavior": { "disableBodyPruning": true },
           "request": {
             "method": "GET",
@@ -164,7 +164,74 @@
                 { "key": "pageSize", "value": "100" }
               ]
             },
-            "description": "Set the {{fromDate}} collection variable to a window you know you have data in (must be within 92 days of now). Optional filters not shown here: dateType (counted|registered|lastUpdated), status (registered|in-progress|picked-up|counted|cancelled|error), continuationToken for paging - see the full API guide for details."
+            "description": "No status, no dateType - dateType defaults to 'counted', so this returns every status as long as it was counted in the window. Set {{fromDate}} to a window you know you have data in (must be within 92 days of now)."
+          },
+          "response": []
+        },
+        {
+          "name": "List - Date Range + Status",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{$isoTimestamp}}&status=counted&customerRefNumber={{customerRefNumber}}&pageSize=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "status", "value": "counted" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "100" }
+              ]
+            },
+            "description": "dateType still defaults to 'counted', so pairing it with status=counted is close to redundant here - this combination mainly exists to show status is a valid filter on its own. Try status=registered|in-progress|picked-up|cancelled|error too."
+          },
+          "response": []
+        },
+        {
+          "name": "List - Date Range + DateType",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{$isoTimestamp}}&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "dateType", "value": "registered" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "100" }
+              ]
+            },
+            "description": "No status - the date range now applies to registeredAt instead of countedAt, so this returns every status as long as it was registered in the window (including bags never counted at all). Try dateType=lastUpdated for delta-polling: 'what changed since I last checked.'"
+          },
+          "response": []
+        },
+        {
+          "name": "List - Date Range + Status + DateType",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{$isoTimestamp}}&status=counted&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "status", "value": "counted" },
+                { "key": "dateType", "value": "registered" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "100" }
+              ]
+            },
+            "description": "The combination that actually differs from the others: bags REGISTERED in this window that are CURRENTLY counted - regardless of when the counting itself happened, which could be well outside this date range."
           },
           "response": []
         },

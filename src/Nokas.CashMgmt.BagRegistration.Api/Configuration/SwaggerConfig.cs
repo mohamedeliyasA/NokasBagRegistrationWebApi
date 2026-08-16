@@ -6,7 +6,10 @@ public static class SwaggerConfig
 {
     public static void AddSwaggerDocumentation(this IServiceCollection services, IConfiguration configuration)
     {
-        var environmentName = configuration["ASPNETCORE_ENVIRONMENT"] ?? "Unknown";
+        // Deliberately not ASPNETCORE_ENVIRONMENT - that stays "Production" on the TEST deployment
+        // too, since it gates the Swagger FDID restriction below. This is a separate, purely
+        // cosmetic label for which deployment tier a viewer is actually looking at.
+        var deploymentTier = configuration["Deployment:Tier"] ?? "Unknown";
 
         services.AddSwaggerGen(c =>
         {
@@ -16,7 +19,7 @@ public static class SwaggerConfig
                 Version = "v1",
                 Description =
                     "Secure bag registration API. Click Authorize and paste a bearer token (no 'Bearer ' prefix) to try requests.<br/><br/>" +
-                    $"<small>Environment: {environmentName} &nbsp;|&nbsp; Build: {BuildInfo.Stamp}</small>",
+                    $"<small>Environment: {deploymentTier} &nbsp;|&nbsp; Build: {BuildInfo.Stamp}</small>",
                 Contact = new OpenApiContact
                 {
                     Name = "Nokas Support",

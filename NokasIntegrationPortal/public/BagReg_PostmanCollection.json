@@ -20,7 +20,9 @@
     { "key": "lastCreatedBagNumber", "value": "", "description": "Auto-filled by 'Register a Bag' - the Get/Cancel examples below reuse it." },
     { "key": "exampleBagNumber", "value": "", "description": "Set this to one of your own bag numbers that has been counted, to try the single-bag counting-result lookup." },
     { "key": "fromDate", "value": "", "description": "ISO-8601 UTC date, e.g. 2026-01-01T00:00:00Z. Must be within 92 days of now. Set this to a window you know you have data in." },
-    { "key": "continuationToken", "value": "", "description": "Auto-filled by 'List - Page 1' - 'List - Page 2' reuses it." }
+    { "key": "continuationToken", "value": "", "description": "Auto-filled by 'List - Page 1' - 'List - Page 2' reuses it." },
+    { "key": "bagNumber", "value": "", "description": "Set this to your own unique bag number before running 'Register a Bag'. Bag numbers can never be reused via this API, even after cancellation - pick a fresh one each time you run this request." },
+    { "key": "lastUpdatedFromDate", "value": "", "description": "ISO-8601 UTC timestamp - your last successful poll time, for the dateType=lastUpdated delta/watermark example. Must be within 92 days of now." }
   ],
   "item": [
     {
@@ -82,7 +84,7 @@
             ],
             "body": {
               "mode": "raw",
-              "raw": "{\n    \"bagRegistration\": {\n        \"customerRefNumber\": \"{{customerRefNumber}}\",\n        \"registrationType\": \"NOK\",\n        \"messageId\": \"{{$guid}}\",\n        \"bagNumber\": \"9{{$timestamp}}\",\n        \"registrationDate\": \"{{$isoTimestamp}}\",\n        \"referenceStatement\": \"postman-example\",\n        \"turnOverDate\": \"{{$isoTimestamp}}\",\n        \"registeredNotes\": \"1000\",\n        \"registeredCoins\": \"0\",\n        \"registeredChecks\": \"0\",\n        \"totalOrderAmount\": \"10000\",\n        \"bagItemsLC\": {\n            \"seddel1000\": \"1000\",\n            \"seddel500\": \"0\",\n            \"seddel200\": \"0\",\n            \"seddel100\": \"0\",\n            \"seddel50\": \"0\"\n        }\n    }\n}",
+              "raw": "{\n    \"bagRegistration\": {\n        \"customerRefNumber\": \"{{customerRefNumber}}\",\n        \"registrationType\": \"NOK\",\n        \"messageId\": \"{{$guid}}\",\n        \"bagNumber\": \"{{bagNumber}}\",\n        \"registrationDate\": \"{{$isoTimestamp}}\",\n        \"referenceStatement\": \"postman-example\",\n        \"turnOverDate\": \"{{$isoTimestamp}}\",\n        \"registeredNotes\": \"1000\",\n        \"registeredCoins\": \"0\",\n        \"registeredChecks\": \"0\",\n        \"totalOrderAmount\": \"10000\",\n        \"bagItemsLC\": {\n            \"seddel1000\": \"1000\",\n            \"seddel500\": \"0\",\n            \"seddel200\": \"0\",\n            \"seddel100\": \"0\",\n            \"seddel50\": \"0\"\n        }\n    }\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": {
@@ -90,7 +92,7 @@
               "host": ["{{baseUrl}}"],
               "path": ["bag-registration"]
             },
-            "description": "Bag number is generated from the current timestamp, so this is safe to re-run - bag numbers can never be reused via this API. On success, saves the bag number into {{lastCreatedBagNumber}} for the requests below."
+            "description": "Set the {{bagNumber}} collection variable to your own unique bag number before running this - bag numbers can never be reused via this API, even after cancellation. On success, also saves it into {{lastCreatedBagNumber}} for the requests below."
           },
           "event": [
             {
@@ -209,7 +211,29 @@
                 { "key": "pageSize", "value": "100" }
               ]
             },
-            "description": "No status - the date range now applies to registeredAt instead of countedAt, so this returns every status as long as it was registered in the window (including bags never counted at all). Try dateType=lastUpdated for delta-polling: 'what changed since I last checked.'"
+            "description": "No status - the date range now applies to registeredAt instead of countedAt, so this returns every status as long as it was registered in the window (including bags never counted at all)."
+          },
+          "response": []
+        },
+        {
+          "name": "List - DateType lastUpdated (watermark polling)",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{lastUpdatedFromDate}}&toDate={{$isoTimestamp}}&dateType=lastUpdated&customerRefNumber={{customerRefNumber}}&pageSize=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{lastUpdatedFromDate}}" },
+                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "dateType", "value": "lastUpdated" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "100" }
+              ]
+            },
+            "description": "The watermark/delta-polling pattern: set {{lastUpdatedFromDate}} to the timestamp of your last successful poll (not a fixed window like the other examples), and toDate to now. This returns everything that changed - any status transition, not just newly counted - since you last checked, regardless of when it was originally registered. Save the current time after each successful poll and use it as the next call's fromDate, so you never re-scan data you've already processed and never miss a change."
           },
           "response": []
         },

@@ -62,6 +62,18 @@ POST https://func-test-nokas-bagreg-v2.azurewebsites.net/api/resync/{customerNum
 `404` if the customer number isn't in the mapping table, or `500` with a `correlationId` to look up in
 Function logs on failure.
 
+**Easy mistake to make**: passing the `CustomerRefNumber` (the partner's own reference, e.g. a GLN) instead
+of the actual `NokasCustomerNumber` gets you `404 "Customer number is not mapped."` — they're different
+values. If you don't know the mapping off-hand, query it from already-synced data instead of guessing:
+
+```sql
+SELECT DISTINCT c.customerNumber, c.customerRefNumber FROM c WHERE c.clientId = '<clientId>'
+```
+
+For the main test client (`1a732120-1149-4d97-98b5-d454d144b383`), it's mapped to **two** customer
+numbers: `customerNumber=314211` for `customerRefNumber=5790002334764`, and `customerNumber=314210` for
+`customerRefNumber=5790002334757`. Use `314211` for resync calls against the usual test data.
+
 **If the customer has more than ~10,000 eligible bags**, one call may not capture everything (same page
 cap as the automatic backfill). Re-run with a narrower `fromDate` per call to sweep the remainder if
 needed, or run it again — upserts are idempotent, so re-running is always safe.

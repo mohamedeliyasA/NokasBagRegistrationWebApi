@@ -22,7 +22,8 @@
     { "key": "fromDate", "value": "", "description": "ISO-8601 UTC date, e.g. 2026-01-01T00:00:00Z. Must be within 92 days of now. Set this to a window you know you have data in." },
     { "key": "continuationToken", "value": "", "description": "Auto-filled by 'List - Page 1' - 'List - Page 2' reuses it." },
     { "key": "bagNumber", "value": "", "description": "Set this to your own unique bag number before running 'Register a Bag'. Bag numbers can never be reused via this API, even after cancellation - pick a fresh one each time you run this request." },
-    { "key": "lastUpdatedFromDate", "value": "", "description": "ISO-8601 UTC timestamp - your last successful poll time, for the dateType=lastUpdated delta/watermark example. Must be within 92 days of now." }
+    { "key": "lastUpdatedFromDate", "value": "", "description": "ISO-8601 UTC timestamp - your last successful poll time, for the dateType=lastUpdated delta/watermark example. Must be within 92 days of now." },
+    { "key": "pageToDate", "value": "", "description": "Auto-pinned by 'List - Page 1's pre-request script so Page 2 reuses the identical toDate - don't set this manually." }
   ],
   "item": [
     {
@@ -267,20 +268,29 @@
             "method": "GET",
             "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
             "url": {
-              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{$isoTimestamp}}&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=10",
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{pageToDate}}&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=10",
               "host": ["{{baseUrl}}"],
               "path": ["bag-counting-results"],
               "query": [
                 { "key": "fromDate", "value": "{{fromDate}}" },
-                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "toDate", "value": "{{pageToDate}}" },
                 { "key": "dateType", "value": "registered" },
                 { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
                 { "key": "pageSize", "value": "10" }
               ]
             },
-            "description": "You'll need more than 10 bags in your date window for hasMore to come back true. Saves the continuation token into {{continuationToken}} for the next request."
+            "description": "You'll need more than 10 bags in your date window for hasMore to come back true. Saves the continuation token into {{continuationToken}} for the next request. The pre-request script pins {{pageToDate}} once so Page 2 reuses the exact same value - the continuation token is bound to the exact query that produced it."
           },
           "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('pageToDate', new Date().toISOString());"
+                ]
+              }
+            },
             {
               "listen": "test",
               "script": {
@@ -304,19 +314,19 @@
             "method": "GET",
             "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
             "url": {
-              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{$isoTimestamp}}&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=10&continuationToken={{continuationToken}}",
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{pageToDate}}&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=10&continuationToken={{continuationToken}}",
               "host": ["{{baseUrl}}"],
               "path": ["bag-counting-results"],
               "query": [
                 { "key": "fromDate", "value": "{{fromDate}}" },
-                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "toDate", "value": "{{pageToDate}}" },
                 { "key": "dateType", "value": "registered" },
                 { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
                 { "key": "pageSize", "value": "10" },
                 { "key": "continuationToken", "value": "{{continuationToken}}" }
               ]
             },
-            "description": "Run right after 'List - Page 1' - every other query parameter must match exactly, the token is bound to a hash of the full query. Note toDate uses a fresh {{$isoTimestamp}} each send, so if you're not running these back-to-back, pin toDate to a fixed value instead so it matches Page 1 exactly."
+            "description": "Run right after 'List - Page 1' - it reuses {{pageToDate}}, which Page 1's pre-request script pinned to a fixed value, so every other query parameter matches exactly (the token is bound to a hash of the full query)."
           },
           "response": []
         },

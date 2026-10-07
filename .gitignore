@@ -138,3 +138,18 @@ docker-compose.override.yml
 *.zip
 *.rar
 *.7z
+
+# Entra/B2C app manifests exported from the portal. Not secret in themselves, but they
+# carry tenant and object IDs and the full authorization model - keep them local.
+*(Microsoft Graph format).json
+*.manifest.json
+
+###############################################################################
+# Operator scratch docs that carry live credentials
+###############################################################################
+# These hold a real client id + secret so they can be pasted straight into a
+# terminal or Postman. GitHub secret scanning blocks any push containing them,
+# and rightly so - keep them local and take the secret from Key Vault or the
+# app registration at the time you need it.
+ClientDemoScript.md
+CountingResultE2ETestPlan.md

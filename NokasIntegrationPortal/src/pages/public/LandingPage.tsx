@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { useMsal, useIsAuthenticated } from "@azure/msal-react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import PublicLayout from "../../layouts/PublicLayout";
+import { Badge } from "@/components/ui";
+import { MARKET_LIST, SURFACE_LABEL, SURFACE_TONE, guidePath } from "@/config/markets";
 
 const rotatingTexts = [
   "We are the European leader in cash handling and digital payments.",
@@ -128,6 +130,64 @@ export default function LandingPage() {
               </p>
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* APIs by market */}
+      <section id="apis" className="bg-gray-50 py-20 px-8">
+        <div className="mx-auto max-w-5xl">
+          <div className="text-center">
+            <h2 className="text-3xl font-bold text-black">APIs by market</h2>
+            <p className="mx-auto mt-3 max-w-2xl text-sm text-gray-700">
+              NOKAS runs a separate cash-handling integration per country. Authentication,
+              correlation and error handling are shared; endpoints, payloads and currencies are
+              market-specific.
+            </p>
+          </div>
+
+          <div className="mt-10 grid grid-cols-1 gap-6 md:grid-cols-2">
+            {MARKET_LIST.map((market) => (
+              <div key={market.key} className="rounded-xl border border-gray-200 bg-white p-6 shadow-sm">
+                <div className="flex items-center gap-3">
+                  <span className="text-3xl leading-none" aria-hidden="true">
+                    {market.flag}
+                  </span>
+                  <div>
+                    <h3 className="text-lg font-semibold text-gray-900">{market.label}</h3>
+                    <p className="text-xs text-gray-500">{market.currency}</p>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-sm text-gray-700">{market.tagline}</p>
+
+                <ul className="mt-4 space-y-2 border-t border-gray-100 pt-3">
+                  <li className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-gray-600">Bag Registration</span>
+                    <Badge tone={SURFACE_TONE[market.surfaces.bagRegistration]}>
+                      {SURFACE_LABEL[market.surfaces.bagRegistration]}
+                    </Badge>
+                  </li>
+                  <li className="flex items-center justify-between gap-2">
+                    <span className="text-sm text-gray-600">Counting Result</span>
+                    <Badge tone={SURFACE_TONE[market.surfaces.countingResult]}>
+                      {SURFACE_LABEL[market.surfaces.countingResult]}
+                    </Badge>
+                  </li>
+                </ul>
+
+                <Link
+                  to={guidePath(market.key)}
+                  className="mt-5 inline-flex items-center gap-1 text-sm font-semibold text-brand-700 underline-offset-2 hover:underline"
+                >
+                  {market.label} API guide <span aria-hidden="true">→</span>
+                </Link>
+              </div>
+            ))}
+          </div>
+
+          <p className="mt-6 text-center text-xs text-gray-500">
+            The API guide is behind sign-in. Partners receive credentials as part of onboarding.
+          </p>
         </div>
       </section>
       </div>

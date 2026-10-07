@@ -1,21 +1,24 @@
 import { useEffect, useRef, useState } from "react";
 import { Callout, InlineCode, PageHeader, SectionHeading } from "@/components/ui";
-import { TEST_ENV } from "@/config/environments";
+import { useMarket } from "./market";
 
-const SWAGGER_URL = TEST_ENV.swaggerUi;
 const DEVELOPER_PORTAL_URL = "https://apim-avarn-dev-test.developer.azure-api.net/";
-// Static asset served from public/ - same file the public /swagger page links to.
-const POSTMAN_COLLECTION = "/BagReg_PostmanCollection.json";
 
 const LOAD_TIMEOUT_MS = 8000;
 
 export default function SwaggerSection() {
+  const market = useMarket();
   const [loaded, setLoaded] = useState<boolean | null>(null);
   const timerRef = useRef<number | undefined>(undefined);
 
+  // The nav hides this page when a market has no Swagger host, so reaching it without one
+  // means a hand-typed URL.
+  const SWAGGER_URL = market.swaggerUi ?? "";
+  const POSTMAN_COLLECTION = market.postmanCollection ?? "";
+
   useEffect(() => {
-    document.title = "API Guide | Swagger & Developer Portal";
-  }, []);
+    document.title = `API Guide | ${market.label} | Swagger & Developer Portal`;
+  }, [market.label]);
 
   useEffect(() => {
     // A cross-origin framing block never fires `load`, so fall back on a timeout.
@@ -33,7 +36,7 @@ export default function SwaggerSection() {
   return (
     <section className="space-y-8">
       <PageHeader
-        eyebrow="API Guide"
+        eyebrow={`API Guide · ${market.flag} ${market.label}`}
         title="Swagger & Developer Portal"
         lead="Try the API interactively — either through the embedded Swagger reference below, or via the self-service Developer Portal."
       />

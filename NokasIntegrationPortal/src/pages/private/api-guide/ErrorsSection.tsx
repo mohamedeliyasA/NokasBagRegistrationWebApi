@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { Badge, Callout, CodeBlock, InlineCode, JumpNav, PageHeader, SectionHeading, Table } from "@/components/ui";
-import { RATE_LIMIT } from "@/config/environments";
+import { useMarket } from "./market";
 
 const jumpItems = [
   { id: "business", label: "Business logic" },
@@ -24,9 +24,11 @@ const statusCodes: { code: string; tone: "green" | "amber" | "red"; body: string
 ];
 
 export default function ErrorsSection() {
+  const market = useMarket();
+
   useEffect(() => {
-    document.title = "API Guide | Errors";
-  }, []);
+    document.title = `API Guide | ${market.label} | Errors`;
+  }, [market.label]);
 
   return (
     <section className="space-y-8">
@@ -196,7 +198,7 @@ export default function ErrorsSection() {
         </p>
 
         <Callout tone="info" title="Limit">
-          The gateway allows <strong>{RATE_LIMIT}</strong> per application. Build your client to
+          The gateway allows <strong>{market.rateLimit}</strong> per application. Build your client to
           honour <InlineCode>429</InlineCode> responses with a backoff regardless — the limit may be
           lowered temporarily in the test environment during trials.
         </Callout>

@@ -1,0 +1,102 @@
+<mxfile host="app.diagrams.net" modified="2026-08-19T16:00:00.000Z" agent="NOKAS" version="24.0.0">
+  <diagram name="Counting Results" id="countingResultFunctional">
+    <mxGraphModel dx="1400" dy="900" grid="0" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="826" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <mxCell id="title" value="Counting Results &#8212; how it works" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=26;fontStyle=1;fontColor=#0E4938;" vertex="1" parent="1">
+          <mxGeometry x="60" y="34" width="1060" height="34" as="geometry" />
+        </mxCell>
+        <mxCell id="subtitle" value="Every customer reads only their own results. Nothing is fetched live from the counting system." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=14;fontColor=#5D6D7E;" vertex="1" parent="1">
+          <mxGeometry x="60" y="68" width="1060" height="22" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lblCustomers" value="CUSTOMERS" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#95A5A6;letterSpacing=1;" vertex="1" parent="1">
+          <mxGeometry x="60" y="124" width="200" height="18" as="geometry" />
+        </mxCell>
+        <mxCell id="lblPlatform" value="NOKAS INTEGRATION PLATFORM" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=11;fontStyle=1;fontColor=#95A5A6;letterSpacing=1;" vertex="1" parent="1">
+          <mxGeometry x="390" y="124" width="690" height="18" as="geometry" />
+        </mxCell>
+
+        <mxCell id="custA" value="&lt;b style=&quot;font-size:15px&quot;&gt;Customer A&lt;/b&gt;&lt;br/&gt;&lt;span style=&quot;font-size:11px;color:#5D6D7E&quot;&gt;their own credentials&lt;/span&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#E6F1FA;strokeColor=#1F6FB2;strokeWidth=2;fontColor=#10456F;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="60" y="170" width="200" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="custB" value="&lt;b style=&quot;font-size:15px&quot;&gt;Customer B&lt;/b&gt;&lt;br/&gt;&lt;span style=&quot;font-size:11px;color:#5D6D7E&quot;&gt;their own credentials&lt;/span&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#F3E9F8;strokeColor=#7D3C98;strokeWidth=2;fontColor=#4A235A;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="60" y="272" width="200" height="72" as="geometry" />
+        </mxCell>
+        <mxCell id="custN" value="&lt;b style=&quot;font-size:15px&quot;&gt;Customer C &#8230; n&lt;/b&gt;&lt;br/&gt;&lt;span style=&quot;font-size:11px;color:#5D6D7E&quot;&gt;their own credentials&lt;/span&gt;" style="rounded=1;arcSize=12;whiteSpace=wrap;html=1;fillColor=#FDF2E4;strokeColor=#CA6F1E;strokeWidth=2;fontColor=#7E4A12;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="60" y="374" width="200" height="72" as="geometry" />
+        </mxCell>
+
+        <mxCell id="api" value="&lt;b style=&quot;font-size:17px&quot;&gt;Counting Result API&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;span style=&quot;font-size:12px&quot;&gt;Recognises who is calling&lt;br/&gt;from their credentials,&lt;br/&gt;then returns &lt;b&gt;only their&lt;/b&gt; results&lt;/span&gt;" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#0E4938;strokeColor=#0A3529;strokeWidth=2;fontColor=#FFFFFF;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="390" y="170" width="210" height="276" as="geometry" />
+        </mxCell>
+
+        <mxCell id="storeBox" value="&lt;b style=&quot;font-size:15px&quot;&gt;Counting Result Store&lt;/b&gt;&lt;br/&gt;&lt;span style=&quot;font-size:11px;color:#5D6D7E&quot;&gt;kept separate per customer&lt;/span&gt;" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#F4F8F6;strokeColor=#0E4938;strokeWidth=2;dashed=1;dashPattern=8 4;verticalAlign=top;spacingTop=10;fontColor=#0E4938;" vertex="1" parent="1">
+          <mxGeometry x="700" y="150" width="380" height="326" as="geometry" />
+        </mxCell>
+        <mxCell id="laneA" value="Customer A&#39;s results" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#E6F1FA;strokeColor=#1F6FB2;strokeWidth=2;fontColor=#10456F;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="728" y="212" width="324" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="laneB" value="Customer B&#39;s results" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#F3E9F8;strokeColor=#7D3C98;strokeWidth=2;fontColor=#4A235A;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="728" y="284" width="324" height="56" as="geometry" />
+        </mxCell>
+        <mxCell id="laneN" value="Customer C &#8230; n results" style="rounded=1;arcSize=14;whiteSpace=wrap;html=1;fillColor=#FDF2E4;strokeColor=#CA6F1E;strokeWidth=2;fontColor=#7E4A12;fontSize=13;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="728" y="356" width="324" height="56" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lock" value="&#128274;&#160; One customer can never see another&#39;s results" style="rounded=1;arcSize=20;whiteSpace=wrap;html=1;fillColor=#FEF9E7;strokeColor=#D4AC0D;strokeWidth=2;fontColor=#7D6608;fontSize=12;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="728" y="424" width="324" height="38" as="geometry" />
+        </mxCell>
+
+        <mxCell id="backend" value="&lt;b style=&quot;font-size:16px&quot;&gt;ServiceNow&lt;/b&gt;&lt;br/&gt;&lt;span style=&quot;font-size:12px&quot;&gt;NOKAS counting system &#8212; where bags are&lt;br/&gt;physically counted and results recorded&lt;/span&gt;" style="rounded=1;arcSize=8;whiteSpace=wrap;html=1;fillColor=#EAEDED;strokeColor=#34495E;strokeWidth=2;fontColor=#1B2631;verticalAlign=middle;" vertex="1" parent="1">
+          <mxGeometry x="700" y="628" width="380" height="86" as="geometry" />
+        </mxCell>
+
+        <mxCell id="eSync" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#0E4938;strokeWidth=3;endArrow=block;endFill=1;exitX=0.5;exitY=0;exitDx=0;exitDy=0;entryX=0.5;entryY=1;entryDx=0;entryDy=0;" edge="1" parent="1" source="backend" target="storeBox">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eSyncLbl" value="&lt;b&gt;Sync every 30 minutes&lt;/b&gt;&lt;br/&gt;&lt;span style=&quot;font-size:11px&quot;&gt;results are sorted to the right customer&lt;/span&gt;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontColor=#0E4938;labelBackgroundColor=#FFFFFF;" vertex="1" connectable="0" parent="eSync">
+          <mxGeometry x="-0.05" relative="1" as="geometry">
+            <mxPoint as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="eA1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1F6FB2;strokeWidth=2.5;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.18;entryDx=0;entryDy=0;" edge="1" parent="1" source="custA" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eB1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#7D3C98;strokeWidth=2.5;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="custB" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eN1" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#CA6F1E;strokeWidth=2.5;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.82;entryDx=0;entryDy=0;" edge="1" parent="1" source="custN" target="api">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eAskLbl" value="&#8220;Give me my counting results&#8221;" style="edgeLabel;html=1;align=center;verticalAlign=middle;resizable=0;points=[];fontSize=12;fontStyle=1;fontColor=#5D6D7E;labelBackgroundColor=#FFFFFF;" vertex="1" connectable="0" parent="eB1">
+          <mxGeometry x="-0.1" relative="1" as="geometry">
+            <mxPoint y="-16" as="offset" />
+          </mxGeometry>
+        </mxCell>
+
+        <mxCell id="eA2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#1F6FB2;strokeWidth=2.5;endArrow=block;endFill=1;startArrow=none;exitX=1;exitY=0.18;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="laneA">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eB2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#7D3C98;strokeWidth=2.5;endArrow=block;endFill=1;exitX=1;exitY=0.5;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="laneB">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="eN2" style="edgeStyle=orthogonalEdgeStyle;rounded=1;html=1;strokeColor=#CA6F1E;strokeWidth=2.5;endArrow=block;endFill=1;exitX=1;exitY=0.82;exitDx=0;exitDy=0;entryX=0;entryY=0.5;entryDx=0;entryDy=0;" edge="1" parent="1" source="api" target="laneN">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="steps" value="&lt;div style=&quot;text-align:left&quot;&gt;&lt;b style=&quot;font-size:14px;color:#0E4938&quot;&gt;The story in four steps&lt;/b&gt;&lt;br/&gt;&lt;br/&gt;&lt;span style=&quot;font-size:12.5px;color:#2C3E50;line-height:1.9&quot;&gt;&lt;b&gt;1.&lt;/b&gt;&#160; NOKAS counts the bags and records the result.&lt;br/&gt;&lt;b&gt;2.&lt;/b&gt;&#160; Every 30 minutes those results are copied to the platform&lt;br/&gt;&#160;&#160;&#160;&#160;&#160; and filed under the customer they belong to.&lt;br/&gt;&lt;b&gt;3.&lt;/b&gt;&#160; A customer asks the API for their counting results.&lt;br/&gt;&lt;b&gt;4.&lt;/b&gt;&#160; The API recognises them and returns only their own data.&lt;/span&gt;&lt;/div&gt;" style="rounded=1;arcSize=6;whiteSpace=wrap;html=1;fillColor=#FFFFFF;strokeColor=#D5DBDB;strokeWidth=2;verticalAlign=top;spacingTop=12;spacingLeft=14;spacingRight=14;" vertex="1" parent="1">
+          <mxGeometry x="60" y="500" width="510" height="180" as="geometry" />
+        </mxCell>
+
+        <mxCell id="colourKey" value="Colours show whose data is whose &#8212; a customer&#39;s colour never crosses into another&#39;s." style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;fontSize=12;fontColor=#95A5A6;fontStyle=2;" vertex="1" parent="1">
+          <mxGeometry x="60" y="694" width="620" height="20" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

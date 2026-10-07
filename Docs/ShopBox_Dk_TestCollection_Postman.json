@@ -1,0 +1,1304 @@
+{
+  "info": {
+    "_postman_id": "5e9a1c34-7d2b-4b8e-9c01-3f6a8d2e4b17",
+    "name": "NOKAS Denmark - ShopBox test collection (TEST)",
+    "description": "End-to-end test collection for client abe243be-3e72-46fe-8467-f16c57dc3489 against api-test.nokas.com. Fill clientSecret, run 0. Auth, then any request. Every request has assertions; run a folder in the Collection Runner to see pass/fail. See Docs/DenmarkBagRegistrationGuide.md.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "https://api-test.nokas.com"
+    },
+    {
+      "key": "tenantId",
+      "value": "24aa7821-e848-457d-99f0-3b40c5519ad6"
+    },
+    {
+      "key": "clientId",
+      "value": "abe243be-3e72-46fe-8467-f16c57dc3489"
+    },
+    {
+      "key": "clientSecret",
+      "value": ""
+    },
+    {
+      "key": "customerRefNumber",
+      "value": "4200000198"
+    },
+    {
+      "key": "companyId",
+      "value": "3214"
+    },
+    {
+      "key": "branchId",
+      "value": "9543"
+    },
+    {
+      "key": "otherClientKardex",
+      "value": ""
+    },
+    {
+      "key": "cashRegisterId",
+      "value": "POS-01"
+    },
+    {
+      "key": "fromDate",
+      "value": "2026-08-01"
+    },
+    {
+      "key": "toDate",
+      "value": "2026-09-20"
+    },
+    {
+      "key": "lookupBagNumber",
+      "value": "999999991"
+    },
+    {
+      "key": "bagNumber",
+      "value": ""
+    },
+    {
+      "key": "registrationDate",
+      "value": ""
+    },
+    {
+      "key": "continuationToken",
+      "value": ""
+    },
+    {
+      "key": "accessToken",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Auth",
+      "item": [
+        {
+          "name": "Get token",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "https://login.microsoftonline.com/{{tenantId}}/oauth2/v2.0/token",
+              "host": [
+                "login",
+                "microsoftonline",
+                "com"
+              ],
+              "path": [
+                "{{tenantId}}",
+                "oauth2",
+                "v2.0",
+                "token"
+              ]
+            },
+            "description": "Run this first. Roles are fixed when a token is issued, so after any role change, get a new token.",
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                {
+                  "key": "grant_type",
+                  "value": "client_credentials"
+                },
+                {
+                  "key": "client_id",
+                  "value": "{{clientId}}"
+                },
+                {
+                  "key": "client_secret",
+                  "value": "{{clientSecret}}"
+                },
+                {
+                  "key": "scope",
+                  "value": "https://nokasb2ctest.onmicrosoft.com/api/nokas/.default"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const j = pm.response.json();",
+                  "pm.test('Token issued', () => pm.expect(j.access_token).to.be.a('string'));",
+                  "pm.collectionVariables.set('accessToken', j.access_token);",
+                  "const roles = JSON.parse(atob(j.access_token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).roles || [];",
+                  "console.log('Roles in token:', roles.join(', '));",
+                  "pm.test('Has DK registration role', () => pm.expect(roles).to.include('cashbag.dk.registration.access'));",
+                  "pm.test('Has DK counting-result role', () => pm.expect(roles).to.include('cashbag.dk.countingresult.read'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "1. Registration (creates the kardex claim)",
+      "item": [
+        {
+          "name": "1.1 Register bag - valid (expect 201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-registration",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"{{cashRegisterId}}\",\n    \"messageId\": \"{{$guid}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": { \"DKK_500\": \"1\", \"DKK_200\": \"1\" }\n  },\n  \"metaData\": { \"companyId\": \"{{companyId}}\", \"branchId\": \"{{branchId}}\" }\n}"
+            },
+            "description": "The first registration for a kardex claims it for this client. Uses {{customerRefNumber}}."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "pm.test('Echoes bag number', () => pm.expect(pm.response.json().bagNumber).to.eql(pm.collectionVariables.get('bagNumber')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Retrieve the registration (expect 200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-registration/{{bagNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-registration",
+                "{{bagNumber}}"
+              ]
+            },
+            "description": "Run right after 1.1 - uses the same {{bagNumber}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Register - kardex owned by another client (expect 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-registration",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{otherClientKardex}}\",\n    \"cashRegisterId\": \"{{cashRegisterId}}\",\n    \"messageId\": \"{{$guid}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": { \"DKK_500\": \"1\", \"DKK_200\": \"1\" }\n  },\n  \"metaData\": { \"companyId\": \"{{companyId}}\", \"branchId\": \"{{branchId}}\" }\n}"
+            },
+            "description": "Set {{otherClientKardex}} to a kardex claimed by a different client. Skip if you have none."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));",
+                  "pm.test('Code', () => pm.expect(pm.response.json().code).to.eql('ERR_CUSTOMER_REF_CONFLICT'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Register - invalid payload (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-registration",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"{{cashRegisterId}}\",\n    \"messageId\": \"{{$guid}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"abc\",\n    \"bagItemsLC\": { \"DKK_500\": \"1\", \"DKK_200\": \"1\" }\n  },\n  \"metaData\": { \"companyId\": \"{{companyId}}\", \"branchId\": \"{{branchId}}\" }\n}"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Validation error', () => pm.expect(pm.response.json().code).to.eql('VALIDATION_ERROR'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 Register - no token (expect 401)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-registration",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"{{cashRegisterId}}\",\n    \"messageId\": \"{{$guid}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": { \"DKK_500\": \"1\", \"DKK_200\": \"1\" }\n  },\n  \"metaData\": { \"companyId\": \"{{companyId}}\", \"branchId\": \"{{branchId}}\" }\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.6 Retrieve unknown bag (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-registration/000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-registration",
+                "000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.7 Register without metaData (optional - expect 201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-registration",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"{{cashRegisterId}}\",\n    \"messageId\": \"{{$guid}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": { \"DKK_500\": \"1\", \"DKK_200\": \"1\" }\n  }\n}"
+            },
+            "description": "metaData is optional; omitting it changes nothing."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.8 Register with a non-string metaData value (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-registration",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"{{cashRegisterId}}\",\n    \"messageId\": \"{{$guid}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": { \"DKK_500\": \"1\", \"DKK_200\": \"1\" }\n  },\n  \"metaData\": { \"branchId\": 9543 }\n}"
+            },
+            "description": "Every metaData value must be a quoted string, like the rest of the contract."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Names the field', () => pm.expect(pm.response.json().field).to.eql('metaData.branchId'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Counting results",
+      "item": [
+        {
+          "name": "2.1 List (expect 200)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                }
+              ]
+            },
+            "description": "dataAsOf is the last successful sync. Rows appear only for claimed kardexes."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "pm.test('Envelope', () => { pm.expect(j).to.have.property('items'); pm.expect(j).to.have.property('pagination'); pm.expect(j).to.have.property('dataAsOf'); });",
+                  "pm.test('Only DKK', () => j.items.forEach(i => pm.expect(i.currencyType).to.eql('DKK')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 Filter status=registered",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&status=registered",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "status",
+                  "value": "registered"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All registered', () => pm.response.json().items.forEach(i => pm.expect(i.status).to.eql('registered')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Filter status=counted",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&status=counted",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "status",
+                  "value": "counted"
+                }
+              ]
+            },
+            "description": "Empty is normal until a claimed bag is counted in ServiceNow."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('All counted', () => pm.response.json().items.forEach(i => pm.expect(i.status).to.eql('counted')));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Filter by your kardex",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&customerRefNumber={{customerRefNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "customerRefNumber",
+                  "value": "{{customerRefNumber}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Only that kardex', () => pm.response.json().items.forEach(i => pm.expect(i.customerRefNumber).to.eql(pm.collectionVariables.get('customerRefNumber'))));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.5 Filter by a kardex that is not yours (expect 200, empty)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&customerRefNumber=9999999",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "customerRefNumber",
+                  "value": "9999999"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('Empty, no error', () => pm.expect(pm.response.json().items.length).to.eql(0));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.6 Paging - page 1 (pageSize=1)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&pageSize=1",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "1"
+                }
+              ]
+            },
+            "description": "Needs at least 2 rows to show hasMore=true. Saves the token for 2.7 and 2.8."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const p = pm.response.json().pagination;",
+                  "pm.collectionVariables.set('continuationToken', p.continuationToken || '');",
+                  "pm.test('hasMore matches token', () => pm.expect(!!p.continuationToken).to.eql(p.hasMore));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.7 Paging - page 2 (same params + token)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&pageSize=1&continuationToken={{continuationToken}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "1"
+                },
+                {
+                  "key": "continuationToken",
+                  "value": "{{continuationToken}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.8 Paging - token with different pageSize (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&pageSize=2&continuationToken={{continuationToken}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "2"
+                },
+                {
+                  "key": "continuationToken",
+                  "value": "{{continuationToken}}"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Code', () => pm.expect(pm.response.json().code).to.eql('INVALID_CONTINUATION_TOKEN'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.9 Single bag (set lookupBagNumber)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results/{{lookupBagNumber}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results",
+                "{{lookupBagNumber}}"
+              ]
+            },
+            "description": "Use a bagNumber from 2.1."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 or 404', () => pm.expect([200, 404]).to.include(pm.response.code));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.10 Unknown bag (expect 404)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results/000",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results",
+                "000"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.11 Bad status (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&status=foo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "status",
+                  "value": "foo"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Field', () => pm.expect(pm.response.json().field).to.eql('status'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.12 Missing dates (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.13 Span over 92 days (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate=2026-01-01&toDate=2026-09-20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "2026-01-01"
+                },
+                {
+                  "key": "toDate",
+                  "value": "2026-09-20"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.14 Bad pageSize (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&pageSize=501",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "501"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.15 No token (expect 401)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                }
+              ]
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.16 dateType=registered",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&dateType=registered",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "dateType",
+                  "value": "registered"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const items = pm.response.json().items;",
+                  "pm.test('has registeredAt', () => items.forEach(i => pm.expect(i.registeredAt).to.be.a('string')));",
+                  "pm.test('sorted newest registered first', () => items.slice(1).forEach((i, n) => pm.expect(items[n].registeredAt >= i.registeredAt).to.be.true));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.17 dateType=counted (only counted bags)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&dateType=counted",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "dateType",
+                  "value": "counted"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "pm.test('every item is counted', () => pm.response.json().items.forEach(i => { pm.expect(i.status).to.eql('counted'); pm.expect(i.countedAt).to.be.a('string'); }));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.18 Bad dateType (expect 400)",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/cash-mgmt/dk/bag-counting-results?fromDate={{fromDate}}&toDate={{toDate}}&dateType=foo",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "cash-mgmt",
+                "dk",
+                "bag-counting-results"
+              ],
+              "query": [
+                {
+                  "key": "fromDate",
+                  "value": "{{fromDate}}"
+                },
+                {
+                  "key": "toDate",
+                  "value": "{{toDate}}"
+                },
+                {
+                  "key": "dateType",
+                  "value": "foo"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+                  "pm.test('Field', () => pm.expect(pm.response.json().field).to.eql('dateType'));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

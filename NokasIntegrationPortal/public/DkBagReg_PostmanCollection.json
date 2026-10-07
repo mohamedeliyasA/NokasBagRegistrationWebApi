@@ -1,0 +1,342 @@
+{
+ "info": {
+  "_postman_id": "b7c31e58-4f2a-4d19-9a6e-1e5d0c8b47f2",
+  "name": "NOKAS Bag Registration API - Denmark (TEST STUB)",
+  "description": "Denmark cash bag registration.\n\nIMPORTANT: this endpoint is a TEST STUB. It validates your payload against the agreed Danish contract and stores it, but it does not register a bag in any backend system. The request and response contracts are final - build against them.\n\nFill in clientId, clientSecret, customerRefNumber, cashRegisterId and bagNumber in the collection variables, run Auth > TokenRequest first, then the requests in order. The retrieve request looks the bag up by {{bagNumber}}, so register it first.",
+  "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+ },
+ "auth": {
+  "type": "bearer",
+  "bearer": [
+   {
+    "key": "token",
+    "value": "{{accessToken}}",
+    "type": "string"
+   }
+  ]
+ },
+ "variable": [
+  {
+   "key": "clientId",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "clientSecret",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "customerRefNumber",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "cashRegisterId",
+   "value": "POS-01",
+   "type": "string"
+  },
+  {
+   "key": "bagNumber",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "registrationDate",
+   "value": "",
+   "type": "string"
+  },
+  {
+   "key": "accessToken",
+   "value": "",
+   "type": "string"
+  }
+ ],
+ "item": [
+  {
+   "name": "Auth",
+   "item": [
+    {
+     "name": "TokenRequest",
+     "protocolProfileBehavior": {
+      "disableBodyPruning": true
+     },
+     "request": {
+      "auth": {
+       "type": "noauth"
+      },
+      "method": "POST",
+      "header": [],
+      "body": {
+       "mode": "urlencoded",
+       "urlencoded": [
+        {
+         "key": "grant_type",
+         "value": "client_credentials",
+         "type": "text"
+        },
+        {
+         "key": "client_id",
+         "value": "{{clientId}}",
+         "type": "text"
+        },
+        {
+         "key": "client_secret",
+         "value": "{{clientSecret}}",
+         "type": "text"
+        },
+        {
+         "key": "scope",
+         "value": "https://nokasb2ctest.onmicrosoft.com/api/nokas/.default",
+         "type": "text"
+        }
+       ]
+      },
+      "url": {
+       "raw": "https://api-test.nokas.com/oauth2/v2.0/token",
+       "protocol": "https",
+       "host": [
+        "api-test",
+        "nokas",
+        "com"
+       ],
+       "path": [
+        "oauth2",
+        "v2.0",
+        "token"
+       ]
+      },
+      "description": "Run this first, and again whenever the token expires or an app role changes. Saves the token into {{accessToken}}, which every other request reads through the collection-level Bearer auth.\n\nA 403 on later requests with a valid token means your application is missing the cashbag.dk.registration.access app role. Roles are stamped in at issuance, so get a fresh token after the role is granted."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+         "const body = pm.response.json();",
+         "pm.collectionVariables.set('accessToken', body.access_token);",
+         "// Registration date defaults to today so the sample payloads stay valid.",
+         "const today = new Date().toISOString().slice(0, 10);",
+         "pm.collectionVariables.set('registrationDate', today);",
+         "console.log('accessToken updated, expires_in=' + body.expires_in + 's');"
+        ]
+       }
+      }
+     ],
+     "response": []
+    }
+   ]
+  },
+  {
+   "name": "Bag Registration",
+   "item": [
+    {
+     "name": "Register bag (valid)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "X-Correlation-ID",
+        "value": "{{$guid}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"{{cashRegisterId}}\",\n    \"messageId\": \"{{$guid}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"1750.00\",\n    \"bagItemsLC\": {\n      \"DKK_500\": \"3\",\n      \"DKK_200\": \"1\",\n      \"DKK_50\": \"1\"\n    }\n  }\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      },
+      "url": {
+       "raw": "https://api-test.nokas.com/api/cash-mgmt/dk/bag-registration",
+       "protocol": "https",
+       "host": [
+        "api-test",
+        "nokas",
+        "com"
+       ],
+       "path": [
+        "api",
+        "cash-mgmt",
+        "dk",
+        "bag-registration"
+       ]
+      },
+      "description": "The reference payload. 3 x 500 + 1 x 200 + 1 x 50 = 1750.00, so totalOrderAmount matches the breakdown and no warning is returned.\n\nSet {{bagNumber}} to the bag you are registering before sending; the retrieve request looks that same bag number up."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+         "const body = pm.response.json();",
+         "pm.test('No validation warnings', () => pm.expect(body.warnings).to.be.undefined);",
+         "pm.test('Bag number echoed', () => pm.expect(body.bagNumber).to.eql(pm.collectionVariables.get('bagNumber')));",
+         "console.log('bagLifecycleId=' + body.bagLifecycleId + ' | ' + body.description);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Retrieve bag registration",
+     "request": {
+      "method": "GET",
+      "header": [],
+      "url": {
+       "raw": "https://api-test.nokas.com/api/cash-mgmt/dk/bag-registration/{{bagNumber}}",
+       "protocol": "https",
+       "host": [
+        "api-test",
+        "nokas",
+        "com"
+       ],
+       "path": [
+        "api",
+        "cash-mgmt",
+        "dk",
+        "bag-registration",
+        "{{bagNumber}}"
+       ]
+      },
+      "description": "Looks a bag up by its number, exactly like the Norwegian API. Returns the same response body as the registration call.\n\nScoped to your own client - a bag registered by another partner returns 404, never their data. Bag numbers are not unique, so this returns the most recent submission."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+         "pm.test('Bag number matches', () => pm.expect(pm.response.json().bagNumber).to.eql(pm.collectionVariables.get('bagNumber')));"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Register bag (total does not match breakdown)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "X-Correlation-ID",
+        "value": "{{$guid}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"{{cashRegisterId}}\",\n    \"messageId\": \"{{$guid}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"900.00\",\n    \"bagItemsLC\": {\n      \"DKK_500\": \"1\"\n    }\n  }\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      },
+      "description": "Declares 900.00 but the breakdown is a single 500 note. Still accepted with 201, but the response carries a warnings array. Treat that as a bug in your integration - it almost always means a quantity was sent where an amount was meant.",
+      "url": {
+       "raw": "https://api-test.nokas.com/api/cash-mgmt/dk/bag-registration",
+       "protocol": "https",
+       "host": [
+        "api-test",
+        "nokas",
+        "com"
+       ],
+       "path": [
+        "api",
+        "cash-mgmt",
+        "dk",
+        "bag-registration"
+       ]
+      }
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+         "pm.test('Warning returned', () => pm.expect(pm.response.json().warnings).to.be.an('array'));"
+        ]
+       }
+      }
+     ],
+     "response": []
+    },
+    {
+     "name": "Register bag (rejected - common mistakes)",
+     "request": {
+      "method": "POST",
+      "header": [
+       {
+        "key": "Content-Type",
+        "value": "application/json"
+       },
+       {
+        "key": "X-Correlation-ID",
+        "value": "{{$guid}}"
+       }
+      ],
+      "body": {
+       "mode": "raw",
+       "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"{{cashRegisterId}}\",\n    \"messageId\": \"NOT-A-GUID\",\n    \"bagNumber\": \"ABC123\",\n    \"registrationDate\": \"17-08-2026\",\n    \"totalOrderAmount\": 888.50,\n    \"currencyType\": \"DKK\",\n    \"bagItemsLC\": {\n      \"DKK_1000\": \"1\"\n    }\n  }\n}",
+       "options": {
+        "raw": {
+         "language": "json"
+        }
+       }
+      },
+      "url": {
+       "raw": "https://api-test.nokas.com/api/cash-mgmt/dk/bag-registration",
+       "protocol": "https",
+       "host": [
+        "api-test",
+        "nokas",
+        "com"
+       ],
+       "path": [
+        "api",
+        "cash-mgmt",
+        "dk",
+        "bag-registration"
+       ]
+      },
+      "description": "Every field here breaks a different rule: messageId is not a GUID, bagNumber is not numeric, registrationDate is the wrong format, totalOrderAmount is an unquoted number, currencyType is not part of the contract, and DKK_1000 is not a valid denomination.\n\nExpect a single 400 listing all of them at once - that is the point of this request."
+     },
+     "event": [
+      {
+       "listen": "test",
+       "script": {
+        "type": "text/javascript",
+        "exec": [
+         "pm.test('Status is 400', () => pm.response.to.have.status(400));",
+         "const body = pm.response.json();",
+         "pm.test('Is a validation error', () => pm.expect(body.code).to.eql('VALIDATION_ERROR'));",
+         "console.log(body.exception);"
+        ]
+       }
+      }
+     ],
+     "response": []
+    }
+   ]
+  }
+ ]
+}

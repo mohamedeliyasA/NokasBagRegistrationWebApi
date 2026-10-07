@@ -12,7 +12,7 @@ import {
 } from "@/components/ui";
 import { API_ENVIRONMENTS, RATE_LIMIT } from "@/config/environments";
 
-/** Route suffix shared by both environments (see API_ENVIRONMENTS for the full URLs). */
+/** Route suffix shared by every Bag Registration operation. */
 const ROUTE_PREFIX = "/api/cash-mgmt";
 
 const requiredHeaders: { name: string; value: string; note: string }[] = [
@@ -67,12 +67,12 @@ function EndpointCard({
       </header>
 
       <div className="space-y-4 p-4">
-        {/* Both environments are listed explicitly so there is no ambiguity. */}
         <EnvUrlList
           title="Full URL"
           entries={API_ENVIRONMENTS.map((env) => ({
             label: env.label,
             url: `${env.baseUrl}${path}`,
+            open: env.open,
           }))}
         />
         {children}
@@ -86,33 +86,37 @@ function EndpointCard({
 /* ------------------------------------------------------------------ */
 
 const statusCodes: { code: string; meaning: string; tone: "green" | "amber" | "red" }[] = [
-  { code: "200 OK", meaning: "Request succeeded and the payload is returned.", tone: "green" },
-  { code: "201 Created", meaning: "Bag registered. A Location header points to the new record.", tone: "green" },
-  { code: "400 Bad Request", meaning: "Validation failed. The response lists each field error.", tone: "amber" },
+  { code: "201 Created", meaning: "Bag registered. The response body carries the bag's lifecycle id.", tone: "green" },
+  { code: "200 OK", meaning: "Retrieve or cancel succeeded.", tone: "green" },
+  { code: "400 Bad Request", meaning: "Validation failed, or the bag can no longer be cancelled at its current stage.", tone: "amber" },
   { code: "401 Unauthorized", meaning: "Token missing, expired, or not valid for this API.", tone: "amber" },
   { code: "404 Not Found", meaning: "No bag with that number exists for your account.", tone: "amber" },
-  { code: "409 Conflict", meaning: "The bag number is already registered and cannot be reused.", tone: "amber" },
+  { code: "408 Request Timeout", meaning: "Cancellation's downstream status check timed out. Safe to retry.", tone: "amber" },
+  { code: "409 Conflict", meaning: "The bag number is already registered, or the bag is already cancelled.", tone: "amber" },
   { code: "429 Too Many Requests", meaning: `Rate limit exceeded (${RATE_LIMIT} per application).`, tone: "red" },
   { code: "503 Service Unavailable", meaning: "A downstream system is temporarily unreachable. Retry.", tone: "red" },
 ];
 
 const onThisPage = [
-  { id: "bag-registration", label: "Bag Registration" },
-  { id: "counting-result", label: "Counting Result" },
+  { id: "register", label: "Register" },
+  { id: "retrieve", label: "Retrieve" },
+  { id: "cancel", label: "Cancel" },
   { id: "status-codes", label: "Status Codes" },
 ];
 
-export default function EndpointsSection() {
+export default function BagRegistrationEndpointsSection() {
   useEffect(() => {
-    document.title = "API Guide | Endpoints";
+    document.title = "API Guide | Bag Registration Endpoints";
   }, []);
 
   return (
     <section className="space-y-8">
       {/* ---------------- Page header ---------------- */}
       <header className="space-y-3">
-        <h2 className="text-2xl font-bold tracking-tight text-gray-900">API Endpoints</h2>
+        <p className="text-xs font-semibold uppercase tracking-widest text-brand-600">Bag Registration API</p>
+        <h2 className="text-2xl font-bold tracking-tight text-gray-900">Bag Registration Endpoints</h2>
         <p className="max-w-3xl text-sm leading-relaxed text-gray-600">
+          Register a bag before pickup, look it up, and cancel it if it has not yet been collected.
           Every endpoint below is scoped to your own account — you only ever see bags registered
           under your client credentials. All requests are authenticated with an OAuth2 bearer token
           and traced with a correlation ID.
@@ -121,7 +125,7 @@ export default function EndpointsSection() {
         <div className="rounded-lg border border-accent-200 bg-accent-50 p-3">
           <EnvUrlList
             title="Base URL"
-            entries={API_ENVIRONMENTS.map((env) => ({ label: env.label, url: env.baseUrl }))}
+            entries={API_ENVIRONMENTS.map((env) => ({ label: env.label, url: env.baseUrl, open: env.open }))}
           />
           <p className="mt-2 text-xs text-accent-900/80">
             Every path below is relative to these. Use <strong>Test</strong> while integrating and
@@ -143,7 +147,7 @@ export default function EndpointsSection() {
           <code className="rounded bg-blue-100 px-1 py-0.5 font-mono">bagLifecycleId</code> that identifies the cash bag for its whole lifetime.
         </p>
         <Link
-          to="/portal/api-guide/correlation"
+          to="/portal/api-guide/norway/correlation"
           className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-700 underline-offset-2 hover:underline"
         >
           Read the correlation guide
@@ -151,19 +155,15 @@ export default function EndpointsSection() {
         </Link>
       </aside>
 
-      {/* ---------------- Bag Registration ---------------- */}
+      {/* ---------------- Register ---------------- */}
       <div className="space-y-4">
-        <SectionHeading id="bag-registration" icon="📦">
-          Bag Registration API
-        </SectionHeading>
-
         <EndpointCard
           method="POST"
           path="/bag-registration"
           title="Register a cash bag"
-          summary="Declare a bag before pickup. The bag number must not already be registered."
+          summary="Declare a bag before pickup. The bag number must not already be registered — and per policy, never can be again once used."
         >
-          <div>
+          <div id="register">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
               Required headers
             </p>
@@ -178,9 +178,9 @@ export default function EndpointsSection() {
     "registrationType": "NOK",
     "messageId": "938D35D2-F8C1-4EAE-BB4D-0797E29DBB6A",
     "bagNumber": "2033331011",
-    "registrationDate": "2025-08-14",
+    "registrationDate": "2026-08-14",
     "referenceStatement": "kamal",
-    "turnOverDate": "2025-08-14",
+    "turnOverDate": "2026-08-14",
     "registeredNotes": "1000",
     "registeredCoins": "0",
     "registeredChecks": "0",
@@ -207,6 +207,12 @@ export default function EndpointsSection() {
   "requestCorrelationId": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbG"
 }`}
           />
+
+          <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-inset ring-amber-600/20">
+            <strong>Amounts are in whole units on the wire (øre-free display here for readability)</strong> —
+            follow the field's documented unit exactly as shown in Swagger for your registration type.
+            NOK is the only supported <code className="mx-1 rounded bg-amber-100 px-1 py-0.5 font-mono">registrationType</code> today.
+          </p>
         </EndpointCard>
 
         <EndpointCard
@@ -215,7 +221,7 @@ export default function EndpointsSection() {
           title="Retrieve a cash bag"
           summary="Fetch a previously registered bag and its current registration status."
         >
-          <div>
+          <div id="retrieve">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
               Required headers
             </p>
@@ -225,14 +231,12 @@ export default function EndpointsSection() {
           <CodeBlock
             label="200 OK"
             code={`{
-  "bagRegistration": {
-    "customerRefNumber": "123451",
-    "registrationType": "NOK",
-    "messageId": "938D35D2-F8C1-4EAE-BB4D-0797E29DBB6A",
-    "bagNumber": "394857349859",
-    "registrationDate": "2025-08-14",
-    "totalOrderAmount": "10000"
-  }
+  "customerRefNumber": "5790002334764",
+  "bagNumber": "2033331011",
+  "description": "Bag Registration Found",
+  "registrationStatus": "In-Progress",
+  "bagLifecycleId": "287d119a-af9b-4d6a-81f4-23d1c0c4a4b6",
+  "requestCorrelationId": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbf"
 }`}
           />
         </EndpointCard>
@@ -243,7 +247,7 @@ export default function EndpointsSection() {
           title="Cancel a cash bag"
           summary="Cancel a registration. Only possible before the bag has been collected for transport."
         >
-          <div>
+          <div id="cancel">
             <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
               Required headers
             </p>
@@ -261,54 +265,11 @@ export default function EndpointsSection() {
   "requestCorrelationId": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbf"
 }`}
           />
-        </EndpointCard>
-      </div>
-
-      {/* ---------------- Counting Result ---------------- */}
-      <div className="space-y-4">
-        <SectionHeading id="counting-result" icon="📊">
-          Counting Result API
-        </SectionHeading>
-
-        <p className="max-w-3xl text-sm leading-relaxed text-gray-600">
-          Retrieve the counted outcome for a previously registered bag. Results become available
-          once NOKAS operations have verified and counted the contents.
-        </p>
-
-        <EndpointCard
-          method="GET"
-          path="/bag-countingresult/{bagNumber}"
-          title="Retrieve a counting result"
-          summary="Returns declared vs counted amounts and any deviation between them."
-        >
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-wider text-gray-500">
-              Required headers
-            </p>
-            <HeadersTable omit={["Content-Type"]} />
-          </div>
-
-          <CodeBlock
-            label="200 OK"
-            code={`{
-  "customerRefNumber": "5790002334764",
-  "bagNumber": "34567891",
-  "description": "Bag counting result retrieved successfully.",
-  "bagStatus": "counted",
-  "bagLifecycleId": "1f4fccf7-8b4d-4c70-a83e-d12626e8a5e5",
-  "requestCorrelationId": "5e3ff647-b06f-4725-9ec7-8e6dfce18fbf",
-  "declaredAmount": 2500.0,
-  "actualCountedAmount": 2500.0,
-  "deviationAmount": 0.0,
-  "countedDate": "2025-11-11T11:59:00"
-}`}
-          />
 
           <p className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-900 ring-1 ring-inset ring-amber-600/20">
-            <strong>Note:</strong> if the bag has not been counted yet, the response still returns
-            <code className="mx-1 rounded bg-amber-100 px-1 py-0.5 font-mono">200 OK</code>
-            with <code className="mx-1 rounded bg-amber-100 px-1 py-0.5 font-mono">bagStatus</code>
-            reflecting its current stage, and the counted fields omitted.
+            <strong>Note:</strong> cancelling a bag that has already been picked up or counted returns{" "}
+            <code className="mx-1 rounded bg-amber-100 px-1 py-0.5 font-mono">400</code> — its
+            counting result, if any, remains queryable through the Counting Result API below.
           </p>
         </EndpointCard>
       </div>
@@ -335,7 +296,7 @@ export default function EndpointsSection() {
           <code className="rounded bg-gray-100 px-1 py-0.5 font-mono">correlationId</code> for the
           failed request. See the{" "}
           <Link
-            to="/portal/api-guide/errors"
+            to="/portal/api-guide/norway/errors"
             className="font-semibold text-brand-700 underline-offset-2 hover:underline"
           >
             Errors
@@ -343,6 +304,22 @@ export default function EndpointsSection() {
           section for the full catalogue.
         </p>
       </div>
+
+      {/* ---------------- Cross-link ---------------- */}
+      <aside className="rounded-lg border-l-4 border-accent-500 bg-accent-50/60 p-4">
+        <h3 className="text-sm font-semibold text-accent-900">Looking for counting results?</h3>
+        <p className="mt-1 text-xs leading-relaxed text-accent-900/80">
+          Once NOKAS has processed a bag, its declared-vs-counted outcome is served from a separate
+          surface with its own authorization role.
+        </p>
+        <Link
+          to="/portal/api-guide/norway/counting-result"
+          className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-accent-700 underline-offset-2 hover:underline"
+        >
+          Go to the Counting Result API
+          <span aria-hidden="true">→</span>
+        </Link>
+      </aside>
     </section>
   );
 }

@@ -18,13 +18,20 @@ const PublicSwagger = lazy(() => import("./pages/public/PublicSwagger"));
 import BusinessActivityMonitoring from "./pages/private/BusinessActivityMonitoring";
 import Profile from "./pages/private/Profile";
 
-// API Guide Sections
+// API Guide - shell, market picker and market dispatch
 import GuideLayout from "./pages/private/api-guide/GuideLayout";
+import MarketPicker from "./pages/private/api-guide/MarketPicker";
+import {
+  ArchitecturePage,
+  BagRegistrationEndpointsPage,
+  BagRegistrationUseCasesPage,
+  CountingResultEndpointsPage,
+  CountingResultUseCasesPage,
+} from "./pages/private/api-guide/sections";
+
+// API Guide - sections shared by every market
 import OverviewSection from "./pages/private/api-guide/OverviewSection";
-import ArchitectureSection from "./pages/private/api-guide/ArchitectureSection";
 import AuthSection from "./pages/private/api-guide/AuthSection";
-import EndpointsSection from "./pages/private/api-guide/EndpointsSection";
-import UseCasesSection from "./pages/private/api-guide/UseCasesSection";
 import ErrorsSection from "./pages/private/api-guide/ErrorsSection";
 import SwaggerSection from "./pages/private/api-guide/SwaggerSection";
 import CorrelationSection from "./pages/private/api-guide/CorrelationSection";
@@ -124,16 +131,43 @@ function App() {
             <Route path="businessActivityMonitoring" element={<BusinessActivityMonitoring />} />
             <Route path="profile" element={<Profile />} />
 
-            {/* API Guide Sections */}
-            <Route path="api-guide" element={<GuideLayout />}>
-              <Route index element={<OverviewSection />} />
-              <Route path="architecture" element={<ArchitectureSection />} />
-              <Route path="auth" element={<AuthSection />} />
-              <Route path="endpoints" element={<EndpointsSection />} />
-              <Route path="use-cases" element={<UseCasesSection />} />
-              <Route path="correlation" element={<CorrelationSection />} />
-              <Route path="errors" element={<ErrorsSection />} />
-              <Route path="swagger" element={<SwaggerSection />} />
+            {/* API Guide. The market is a route segment rather than client-side state so
+                every page is deep-linkable and a partner can bookmark their own market. */}
+            <Route path="api-guide">
+              <Route index element={<MarketPicker />} />
+
+              {/* Pre-market links. Static segments outrank the :market pattern, so these
+                  keep working instead of being read as a market name. */}
+              {[
+                "architecture",
+                "auth",
+                "bag-registration",
+                "bag-registration/use-cases",
+                "counting-result",
+                "counting-result/use-cases",
+                "correlation",
+                "errors",
+                "swagger",
+              ].map((legacy) => (
+                <Route
+                  key={legacy}
+                  path={legacy}
+                  element={<Navigate to={`/portal/api-guide/norway/${legacy}`} replace />}
+                />
+              ))}
+
+              <Route path=":market" element={<GuideLayout />}>
+                <Route index element={<OverviewSection />} />
+                <Route path="architecture" element={<ArchitecturePage />} />
+                <Route path="auth" element={<AuthSection />} />
+                <Route path="bag-registration" element={<BagRegistrationEndpointsPage />} />
+                <Route path="bag-registration/use-cases" element={<BagRegistrationUseCasesPage />} />
+                <Route path="counting-result" element={<CountingResultEndpointsPage />} />
+                <Route path="counting-result/use-cases" element={<CountingResultUseCasesPage />} />
+                <Route path="correlation" element={<CorrelationSection />} />
+                <Route path="errors" element={<ErrorsSection />} />
+                <Route path="swagger" element={<SwaggerSection />} />
+              </Route>
             </Route>
           </Route>
 

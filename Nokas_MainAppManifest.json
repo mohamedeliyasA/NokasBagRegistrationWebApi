@@ -1,0 +1,156 @@
+{
+	"id": "b769b9e3-60e4-4d1e-a984-1570e7f46de6",
+	"deletedDateTime": null,
+	"appId": "f0e05426-7e17-47fc-85fa-2ed0b0dfa7cb",
+	"applicationTemplateId": null,
+	"disabledByMicrosoftStatus": null,
+	"createdByAppId": "18ed3507-a475-4ccb-b669-d66bc9f2a36e",
+	"createdDateTime": "2025-05-16T12:08:46Z",
+	"displayName": "Nokas.CashBagManagement.WebAPI",
+	"description": null,
+	"groupMembershipClaims": null,
+	"identifierUris": [
+		"https://nokasb2ctest.onmicrosoft.com/api/nokas"
+	],
+	"isDeviceOnlyAuthSupported": null,
+	"isDisabled": null,
+	"isFallbackPublicClient": true,
+	"nativeAuthenticationApisEnabled": null,
+	"notes": null,
+	"publisherDomain": "nokasb2ctest.onmicrosoft.com",
+	"serviceManagementReference": null,
+	"signInAudience": "AzureADMyOrg",
+	"tags": [],
+	"tokenEncryptionKeyId": null,
+	"samlMetadataUrl": null,
+	"defaultRedirectUri": null,
+	"certification": null,
+	"optionalClaims": null,
+	"servicePrincipalLockConfiguration": null,
+	"requestSignatureVerification": null,
+	"addIns": [],
+	"api": {
+		"acceptMappedClaims": null,
+		"knownClientApplications": [],
+		"requestedAccessTokenVersion": null,
+		"oauth2PermissionScopes": [
+			{
+				"adminConsentDescription": "Allows the application to access the API",
+				"adminConsentDisplayName": "Access CashBag API",
+				"id": "85780292-b33f-4017-a690-9759a841518d",
+				"isEnabled": true,
+				"type": "Admin",
+				"userConsentDescription": null,
+				"userConsentDisplayName": null,
+				"value": "access_as_app"
+			}
+		],
+		"preAuthorizedApplications": []
+	},
+	"appRoles": [
+		{
+			"allowedMemberTypes": [
+				"Application"
+			],
+			"description": "Access to the Danish bag registration endpoints (POST/GET) - market DK.",
+			"displayName": "DK Registration Access",
+			"id": "cf82c0ee-40fb-4aef-850e-444c14a300c7",
+			"isEnabled": true,
+			"origin": "Application",
+			"value": "cashbag.dk.registration.access"
+		},
+		{
+			"allowedMemberTypes": [
+				"Application"
+			],
+			"description": "Access to the Danish bag counting result endpoints (GET) - market DK.",
+			"displayName": "DK Counting Result Read",
+			"id": "7b3d5e1a-92c4-4f86-a0d7-6e2b8c4f1a93",
+			"isEnabled": true,
+			"origin": "Application",
+			"value": "cashbag.dk.countingresult.read"
+		},
+		{
+			"allowedMemberTypes": [
+				"Application"
+			],
+			"description": "Allows partner applications to read counting results from the Bag Counting Result API.",
+			"displayName": "Cash Bag Counting Result Read",
+			"id": "fcc0e393-0ee6-4e61-8da2-6fc39bc4a6e6",
+			"isEnabled": true,
+			"origin": "Application",
+			"value": "cashbag.countingresult.read"
+		},
+		{
+			"allowedMemberTypes": [
+				"Application"
+			],
+			"description": "Access to bag registration endpoints (POST/GET/DELETE) - the v2 rewrite's registration surface.",
+			"displayName": "Registration Access",
+			"id": "de1ad6b6-35f3-41fb-93b1-353028d35cd4",
+			"isEnabled": true,
+			"origin": "Application",
+			"value": "cashbag.registration.access"
+		},
+		{
+			"allowedMemberTypes": [
+				"Application"
+			],
+			"description": "Allows partner applications to call the Bag Registration API.",
+			"displayName": "Cash Bag API Access",
+			"id": "3f8e9a2d-6b41-4c7a-9d0e-1a5c7e2f4b6a",
+			"isEnabled": true,
+			"origin": "Application",
+			"value": "cashbag.api.access"
+		}
+	],
+	"info": {
+		"logoUrl": null,
+		"marketingUrl": null,
+		"privacyStatementUrl": null,
+		"supportUrl": null,
+		"termsOfServiceUrl": null
+	},
+	"keyCredentials": [],
+	"parentalControlSettings": {
+		"countriesBlockedForMinors": [],
+		"legalAgeGroupRule": "Allow"
+	},
+	"passwordCredentials": [],
+	"publicClient": {
+		"redirectUris": []
+	},
+	"requiredResourceAccess": [
+		{
+			"resourceAppId": "00000003-0000-0000-c000-000000000000",
+			"resourceAccess": [
+				{
+					"id": "37f7f235-527c-4136-accd-4a02d197296e",
+					"type": "Scope"
+				},
+				{
+					"id": "7427e0e9-2fba-42fe-b0c0-848c9e6a8182",
+					"type": "Scope"
+				}
+			]
+		}
+	],
+	"verifiedPublisher": {
+		"displayName": null,
+		"verifiedPublisherId": null,
+		"addedDateTime": null
+	},
+	"web": {
+		"homePageUrl": null,
+		"logoutUrl": null,
+		"redirectUris": [],
+		"implicitGrantSettings": {
+			"enableAccessTokenIssuance": false,
+			"enableIdTokenIssuance": false
+		},
+		"redirectUriSettings": []
+	},
+	"spa": {
+		"redirectUris": []
+	}
+}

@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Badge, Callout, CodeBlock, EnvUrlList, InlineCode, JumpNav, PageHeader, SectionHeading, Table } from "@/components/ui";
-import { PROD_ENV, TEST_ENV } from "@/config/environments";
+import { PRODUCTION_OPEN, PROD_ENV, TEST_ENV } from "@/config/environments";
+import { useMarket } from "./market";
 
 const tokenRequest = (env: typeof TEST_ENV) => `POST ${env.tokenUrl}
 Content-Type: application/x-www-form-urlencoded
@@ -23,18 +24,21 @@ const jumpItems = [
   { id: "credentials", label: "Credentials" },
   { id: "token", label: "Get a token" },
   { id: "using", label: "Use the token" },
+  { id: "roles", label: "Market access" },
   { id: "security", label: "Security" },
 ];
 
 export default function AuthSection() {
+  const market = useMarket();
+
   useEffect(() => {
-    document.title = "API Guide | Authentication";
-  }, []);
+    document.title = `API Guide | ${market.label} | Authentication`;
+  }, [market.label]);
 
   return (
     <section className="space-y-8">
       <PageHeader
-        eyebrow="API Guide"
+        eyebrow={`API Guide · ${market.flag} ${market.label}`}
         title="Authentication & security"
         lead="The NOKAS Cash Handling API uses OAuth 2.0 client credentials — an industry-standard protocol for secure, token-based machine-to-machine authentication."
       >
@@ -98,7 +102,7 @@ export default function AuthSection() {
           title="Token endpoint"
           entries={[
             { label: TEST_ENV.label, url: TEST_ENV.tokenUrl },
-            { label: PROD_ENV.label, url: PROD_ENV.tokenUrl },
+            { label: PROD_ENV.label, url: PROD_ENV.tokenUrl, open: PROD_ENV.open },
           ]}
         />
 
@@ -155,6 +159,63 @@ export default function AuthSection() {
         </p>
 
         <CodeBlock label="Header" code={authHeader} />
+      </div>
+
+      {/* ---------------- Market access ---------------- */}
+      <div className="space-y-4">
+        <SectionHeading id="roles" icon="🌍">
+          Market access
+        </SectionHeading>
+
+        <p className="text-sm leading-relaxed text-gray-600">
+          One set of credentials can serve more than one market. What a token is allowed to reach is
+          decided by the <strong>app roles</strong> granted to your application — each API surface has
+          its own. A token without the right role is rejected with{" "}
+          <InlineCode>403 Forbidden</InlineCode>, even though it authenticated successfully.
+        </p>
+
+        <Table headers={["Surface", "Required app role"]}>
+          <tr>
+            <td className="whitespace-nowrap px-3 py-2 font-semibold text-gray-900">
+              {market.label} — Bag Registration
+            </td>
+            <td className="px-3 py-2 text-gray-700">
+              <InlineCode>{market.roles.registration}</InlineCode>
+            </td>
+          </tr>
+          {market.roles.countingResult && (
+            <tr>
+              <td className="whitespace-nowrap px-3 py-2 font-semibold text-gray-900">
+                {market.label} — Counting Result
+              </td>
+              <td className="px-3 py-2 text-gray-700">
+                <InlineCode>{market.roles.countingResult}</InlineCode>
+              </td>
+            </tr>
+          )}
+        </Table>
+
+        <Callout tone="info" title="Roles are stamped into the token when it is issued">
+          If a role is granted to your application after you obtained a token, that token will not
+          carry it. Request a fresh token before retrying.
+        </Callout>
+
+        {!PRODUCTION_OPEN ? (
+          <Callout tone="warning" title="Use the Test credentials — production is not open">
+            Production is not yet available for any market, so the production token URL and
+            scope above are shown for reference only. Use the Test environment values
+            throughout. Production authenticates against a different directory, which means a
+            separate client id and secret that NOKAS will issue at cutover — your Test
+            credentials will not work there.
+          </Callout>
+        ) : (
+          !market.prodBaseUrl && (
+            <Callout tone="warning" title={`${market.label} is test-only today`}>
+              There is no production deployment for this market yet. Use the Test environment
+              credentials and endpoints throughout.
+            </Callout>
+          )
+        )}
       </div>
 
       {/* ---------------- Security ---------------- */}

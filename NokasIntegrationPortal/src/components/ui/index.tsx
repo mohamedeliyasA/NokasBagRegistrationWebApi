@@ -330,7 +330,8 @@ export function EnvUrlList({
   entries,
 }: {
   title?: string;
-  entries: { label: string; url: string }[];
+  /** `open: false` marks an environment that exists but is not yet usable. */
+  entries: { label: string; url: string; open?: boolean }[];
 }) {
   return (
     <div className="space-y-2">
@@ -342,8 +343,21 @@ export function EnvUrlList({
           key={e.label}
           className="flex items-center gap-2 overflow-hidden rounded-md border border-gray-200 bg-gray-50 px-2 py-1.5"
         >
-          <Badge tone={e.label === "Production" ? "brand" : "gray"}>{e.label}</Badge>
-          <code className="min-w-0 flex-1 break-all font-mono text-xs text-gray-800">{e.url}</code>
+          <Badge tone={e.open === false ? "gray" : e.label === "Production" ? "brand" : "gray"}>
+            {e.label}
+          </Badge>
+          <code
+            className={`min-w-0 flex-1 break-all font-mono text-xs ${
+              e.open === false ? "text-gray-400 line-through" : "text-gray-800"
+            }`}
+          >
+            {e.url}
+          </code>
+          {e.open === false && (
+            <span className="shrink-0 rounded bg-amber-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-800 ring-1 ring-inset ring-amber-600/20">
+              Not open yet
+            </span>
+          )}
           <span className="shrink-0 rounded bg-slate-800">
             <CopyButton value={e.url} label={`${e.label} URL`} />
           </span>

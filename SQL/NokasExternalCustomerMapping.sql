@@ -1,4 +1,4 @@
-USE [Integrations.SN.CMS]
+USE [BizTalk_Helper]
 GO
 
 /****** Object:  Table [dbo].[NokasExternalCustomerMapping]    Script Date: 8/8/2026 5:56:52 PM ******/

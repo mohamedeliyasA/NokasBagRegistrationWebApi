@@ -1,0 +1,227 @@
+{
+  "info": {
+    "_postman_id": "7e5c9a3d-4b1f-4a6e-8d2b-1f6a9c3e5b70",
+    "name": "NOKAS Bag Registration - Vinmonopolet (diagnostic)",
+    "description": "Dedicated diagnostic collection for Vinmonopolet's client (clientId c0d46cfe-1087-4f4f-9b28-e8b6160361d3), created after the 2026-09-17 support ticket. clientId and customerRefNumber are pre-filled from their real onboarding data - only paste the client secret into the `clientSecret` variable (Variables tab, marked secret, never committed here). Run Auth -> TokenRequest once, then the Bag Registration folder in order. \n\nIMPORTANT - the live TEST rate limit is currently 2 calls/60s (confirmed live 2026-09-17, see CLAUDE.md's rate-limit-anomaly note - this is unusually tight and may be a mistake, not yet confirmed with the owner). Running this collection with Postman's Runner or clicking through quickly WILL 429. Wait a few seconds between requests, or run one at a time.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://api-test.nokas.com/api/cash-mgmt", "description": "Test environment base URL." },
+    { "key": "clientId", "value": "c0d46cfe-1087-4f4f-9b28-e8b6160361d3", "description": "Vinmonopolet's OAuth2 client id." },
+    { "key": "clientSecret", "value": "", "type": "secret", "description": "Paste Vinmonopolet's client secret here yourself - never committed to the repo." },
+    { "key": "customerRefNumber", "value": "102-1-146594", "description": "Vinmonopolet's customerRefNumber, from their support ticket." },
+    { "key": "accessToken", "value": "", "description": "Auto-filled by Auth -> TokenRequest." },
+    { "key": "lastCreatedBagNumber", "value": "", "description": "Auto-filled by 'POST - Create Bag' - later requests reuse it." }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "TokenRequest",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "client_id", "value": "{{clientId}}", "type": "text" },
+                { "key": "client_secret", "value": "{{clientSecret}}", "type": "text" },
+                { "key": "scope", "value": "https://nokasb2ctest.onmicrosoft.com/api/nokas/.default", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "https://api-test.nokas.com/oauth2/v2.0/token",
+              "protocol": "https",
+              "host": ["api-test", "nokas", "com"],
+              "path": ["oauth2", "v2.0", "token"]
+            },
+            "description": "Run this first - saves the access token into {{accessToken}}. Re-run whenever the token expires (~1h) or a role changes (roles are stamped in at token issuance, so a stale token won't show a newly-granted role)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.access_token);",
+                  "const payload = JSON.parse(atob(body.access_token.split('.')[1].replace(/-/g,'+').replace(/_/g,'/')));",
+                  "console.log('accessToken updated, expires_in=' + body.expires_in + 's, roles=' + JSON.stringify(payload.roles));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bag Registration",
+      "item": [
+        {
+          "name": "POST - Create Bag (201)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "X-Correlation-ID", "value": "{{$guid}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bagRegistration\": {\n        \"customerRefNumber\": \"{{customerRefNumber}}\",\n        \"registrationType\": \"NOK\",\n        \"messageId\": \"{{$guid}}\",\n        \"bagNumber\": \"9{{$timestamp}}\",\n        \"registrationDate\": \"{{$isoTimestamp}}\",\n        \"referenceStatement\": \"vinmonopolet-diagnostic\",\n        \"turnOverDate\": \"{{$isoTimestamp}}\",\n        \"registeredNotes\": \"1000\",\n        \"registeredCoins\": \"0\",\n        \"registeredChecks\": \"0\",\n        \"totalOrderAmount\": \"1125.00\",\n        \"bagItemsLC\": {\n            \"seddel1000\": \"1000\",\n            \"seddel500\": \"0\",\n            \"seddel200\": \"0\",\n            \"seddel100\": \"0\",\n            \"seddel50\": \"0\"\n        }\n    }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bag-registration",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-registration"]
+            },
+            "description": "Bag number is generated from the current timestamp - safe to re-run. On success, saves the bag number into {{lastCreatedBagNumber}} for the requests below."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    const body = pm.response.json();",
+                  "    pm.collectionVariables.set('lastCreatedBagNumber', body.bagNumber);",
+                  "    pm.test('Response has bagLifecycleId', () => pm.expect(body.bagLifecycleId).to.be.a('string'));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "GET - Retrieve Bag (200)",
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "X-Correlation-ID", "value": "{{$guid}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bag-registration/{{lastCreatedBagNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-registration", "{{lastCreatedBagNumber}}"]
+            },
+            "description": "Run after 'POST - Create Bag' - reuses {{lastCreatedBagNumber}}."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "DELETE - Cancel Bag (200)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "X-Correlation-ID", "value": "{{$guid}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bag-registration/{{lastCreatedBagNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-registration", "{{lastCreatedBagNumber}}"]
+            },
+            "description": "Run last - cancels the bag created above. Only works if it hasn't been picked up/counted yet, which it never is for a freshly-created test bag."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "POST - Duplicate Bag (409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "X-Correlation-ID", "value": "{{$guid}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bagRegistration\": {\n        \"customerRefNumber\": \"{{customerRefNumber}}\",\n        \"registrationType\": \"NOK\",\n        \"messageId\": \"{{$guid}}\",\n        \"bagNumber\": \"{{lastCreatedBagNumber}}\",\n        \"registrationDate\": \"{{$isoTimestamp}}\",\n        \"referenceStatement\": \"vinmonopolet-diagnostic\",\n        \"turnOverDate\": \"{{$isoTimestamp}}\",\n        \"registeredNotes\": \"1000\",\n        \"registeredCoins\": \"0\",\n        \"registeredChecks\": \"0\",\n        \"totalOrderAmount\": \"1125.00\",\n        \"bagItemsLC\": {\n            \"seddel1000\": \"1000\",\n            \"seddel500\": \"0\",\n            \"seddel200\": \"0\",\n            \"seddel100\": \"0\",\n            \"seddel50\": \"0\"\n        }\n    }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bag-registration",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-registration"]
+            },
+            "description": "Optional - run any time after 'POST - Create Bag', even after cancelling it. Expect ERR_DUPLICATE_BAG (409) - bag numbers can never be reused, even after cancellation. This is the check they need to be aware of on their side too."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 409', () => pm.response.to.have.status(409));"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "POST - Missing Role (403, only if role not yet granted)",
+          "request": {
+            "auth": { "type": "bearer", "bearer": [{ "key": "token", "value": "{{accessToken}}", "type": "string" }] },
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "X-Correlation-ID", "value": "{{$guid}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bagRegistration\": {\n        \"customerRefNumber\": \"{{customerRefNumber}}\",\n        \"registrationType\": \"NOK\",\n        \"messageId\": \"{{$guid}}\",\n        \"bagNumber\": \"9{{$timestamp}}\",\n        \"registrationDate\": \"{{$isoTimestamp}}\",\n        \"referenceStatement\": \"vinmonopolet-diagnostic\",\n        \"turnOverDate\": \"{{$isoTimestamp}}\",\n        \"registeredNotes\": \"1000\",\n        \"registeredCoins\": \"0\",\n        \"registeredChecks\": \"0\",\n        \"totalOrderAmount\": \"1125.00\",\n        \"bagItemsLC\": {\n            \"seddel1000\": \"1000\",\n            \"seddel500\": \"0\",\n            \"seddel200\": \"0\",\n            \"seddel100\": \"0\",\n            \"seddel50\": \"0\"\n        }\n    }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bag-registration",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-registration"]
+            },
+            "description": "Historical/reference only - this is exactly the request that returned a bare 403 (empty body) before the cashbag.registration.access role was granted on 2026-09-17. Kept here as documentation of the original bug, not expected to fail any more. If it ever 403s again with an empty body, the role grant was lost/reverted - check Entra first, not the app code."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

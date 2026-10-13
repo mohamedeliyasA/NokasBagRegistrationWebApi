@@ -33,7 +33,7 @@ export default function BusinessActivityMonitoring() {
           portal. In the meantime, everything is available through the API.
         </p>
         <Link
-          to="/portal/api-guide/endpoints"
+          to="/portal/api-guide"
           className="mt-6 inline-flex items-center gap-1.5 rounded-full bg-brand-800 px-6 py-2.5 text-sm font-semibold text-white transition hover:bg-brand-700"
         >
           Browse the API endpoints

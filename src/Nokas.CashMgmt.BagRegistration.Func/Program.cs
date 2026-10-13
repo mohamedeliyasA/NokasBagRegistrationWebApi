@@ -24,5 +24,8 @@ builder.Services.AddSingleton(_ => new CosmosClient(
 
 builder.Services.AddSingleton<IBagStatusService, BagStatusService>();
 builder.Services.AddSingleton<IBagNumberCacheSyncService, BagNumberCacheSyncService>();
+builder.Services.AddSingleton<ICountingResultDataService, CountingResultDataService>();
+builder.Services.AddSingleton<ICountingResultSyncService, CountingResultSyncService>();
+builder.Services.AddSingleton<ICountingResultResyncService, CountingResultResyncService>();
 
 builder.Build().Run();

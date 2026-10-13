@@ -15,4 +15,7 @@ public sealed class CosmosDbOptions
 
     [Required]
     public required string BagNumberCacheContainerName { get; init; }
+
+    [Required]
+    public required string CountingResultContainerName { get; init; }
 }

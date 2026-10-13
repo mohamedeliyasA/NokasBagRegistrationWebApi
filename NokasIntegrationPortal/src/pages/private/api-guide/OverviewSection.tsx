@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Badge, InlineCode, PageHeader, SectionHeading, Table } from "@/components/ui";
+import { SURFACE_LABEL, SURFACE_TONE } from "@/config/markets";
+import { useGuideLink, useMarket } from "./market";
 
 const versions = [
   { version: "2.0", change: "First roll out", author: "Mohamed Eliyas Anver Deen", date: "05 Sep 2026", current: true },
@@ -50,16 +52,19 @@ const capabilities = [
 ];
 
 export default function OverviewSection() {
+  const market = useMarket();
+  const link = useGuideLink();
+
   useEffect(() => {
-    document.title = "API Guide | Overview";
-  }, []);
+    document.title = `API Guide | ${market.label} | Overview`;
+  }, [market.label]);
 
   return (
     <section className="space-y-8">
       <PageHeader
-        eyebrow="API Guide"
+        eyebrow={`API Guide · ${market.flag} ${market.label}`}
         title="Cash Handling Cloud API"
-        lead="A functional overview of the NOKAS public-facing cloud API, which lets authorised vendors register cash bags digitally and retrieve their counting results securely."
+        lead={`A functional overview of the NOKAS public-facing cloud API for ${market.label}, which lets authorised vendors register cash bags digitally and retrieve their counting results securely. All amounts in this market are in ${market.currency}.`}
       />
 
       {/* ---------------- What it does ---------------- */}
@@ -128,13 +133,18 @@ export default function OverviewSection() {
 
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-card">
-            <Badge tone="green">Bag registration</Badge>
+            <div className="flex items-center gap-2">
+              <Badge tone="green">Bag registration</Badge>
+              <Badge tone={SURFACE_TONE[market.surfaces.bagRegistration]}>
+                {SURFACE_LABEL[market.surfaces.bagRegistration]}
+              </Badge>
+            </div>
             <p className="mt-2.5 text-sm leading-relaxed text-gray-600">
               Register bags via the API by supplying the required details in the registration
               request payload.
             </p>
             <Link
-              to="/portal/api-guide/endpoints"
+              to={link("bag-registration")}
               className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 underline-offset-2 hover:underline"
             >
               See the endpoints <span aria-hidden="true">→</span>
@@ -142,13 +152,18 @@ export default function OverviewSection() {
           </div>
 
           <div className="rounded-xl border border-gray-200 bg-white p-5 shadow-card">
-            <Badge tone="accent">Counting results</Badge>
+            <div className="flex items-center gap-2">
+              <Badge tone="accent">Counting results</Badge>
+              <Badge tone={SURFACE_TONE[market.surfaces.countingResult]}>
+                {SURFACE_LABEL[market.surfaces.countingResult]}
+              </Badge>
+            </div>
             <p className="mt-2.5 text-sm leading-relaxed text-gray-600">
               Retrieve counting results for your registered bags once verification by NOKAS is
               complete.
             </p>
             <Link
-              to="/portal/api-guide/endpoints"
+              to={link("counting-result")}
               className="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-brand-700 underline-offset-2 hover:underline"
             >
               See the endpoints <span aria-hidden="true">→</span>

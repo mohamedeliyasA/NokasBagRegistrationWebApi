@@ -17,6 +17,13 @@ export type ApiEnvironment = {
   scope: string;
   swaggerUi: string;
   swaggerJson: string;
+  /**
+   * False while an environment exists but is not yet open to partners. Production
+   * resources were provisioned early for internal testing, which is not the same
+   * thing as being available — so every surface that prints a URL must be able to
+   * say which of the two it is.
+   */
+  open: boolean;
 };
 
 export const TEST_ENV: ApiEnvironment = {
@@ -27,6 +34,7 @@ export const TEST_ENV: ApiEnvironment = {
   scope: "https://nokasb2ctest.onmicrosoft.com/api/nokas/.default",
   swaggerUi: "https://api-test.nokas.com/swagger/index.html",
   swaggerJson: "https://api-test.nokas.com/swagger/v1/swagger.json",
+  open: true,
 };
 
 export const PROD_ENV: ApiEnvironment = {
@@ -38,9 +46,17 @@ export const PROD_ENV: ApiEnvironment = {
   scope: "https://nokasb2c.onmicrosoft.com/api/nokas/.default",
   swaggerUi: "https://api.nokas.com/swagger/index.html",
   swaggerJson: "https://api.nokas.com/swagger/v1/swagger.json",
+  open: false,
 };
 
 export const API_ENVIRONMENTS: ApiEnvironment[] = [TEST_ENV, PROD_ENV];
+
+/**
+ * Whether ANY market is available in production. Flip PROD_ENV.open to true when
+ * cutover actually happens — the surface badges, the guide banner and the auth
+ * page all derive from this, so none of them can be left saying the wrong thing.
+ */
+export const PRODUCTION_OPEN = PROD_ENV.open;
 
 /** Per-application gateway throttle. */
 export const RATE_LIMIT = "500 requests per second";

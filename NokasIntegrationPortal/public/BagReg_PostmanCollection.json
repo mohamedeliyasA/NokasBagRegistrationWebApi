@@ -1,0 +1,351 @@
+{
+  "info": {
+    "_postman_id": "d4e1f7a2-6b3c-4f8e-9a1d-7c2b5e8f3a90",
+    "name": "NOKAS Bag Registration & Counting Result API",
+    "description": "Quick-start examples for the core methods: register a bag, look it up, cancel it, and retrieve counting results. Fill in your own `clientId`, `clientSecret`, and `customerRefNumber` (given to you during onboarding) under this collection's Variables tab, then run Auth -> TokenRequest once - it saves your access token into the `accessToken` variable, and every other request inherits a collection-level Bearer Token auth pointed at that variable automatically. Re-run TokenRequest whenever it expires (~1 hour) or a role changes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "https://api-test.nokas.com/api/cash-mgmt", "description": "Test environment base URL. For production, use https://api.nokas.com/api/cash-mgmt with a production client id/secret." },
+    { "key": "clientId", "value": "", "description": "Your OAuth2 client id, issued during onboarding." },
+    { "key": "clientSecret", "value": "", "type": "secret", "description": "Your OAuth2 client secret, issued during onboarding. Postman masks variables marked as secret." },
+    { "key": "customerRefNumber", "value": "", "description": "Your customer reference number (e.g. your GLN), issued during onboarding." },
+    { "key": "accessToken", "value": "", "description": "Auto-filled by Auth -> TokenRequest. Every other request's Bearer auth reads from this." },
+    { "key": "lastCreatedBagNumber", "value": "", "description": "Auto-filled by 'Register a Bag' - the Get/Cancel examples below reuse it." },
+    { "key": "exampleBagNumber", "value": "", "description": "Set this to one of your own bag numbers that has been counted, to try the single-bag counting-result lookup." },
+    { "key": "fromDate", "value": "", "description": "ISO-8601 UTC date, e.g. 2026-01-01T00:00:00Z. Must be within 92 days of now. Set this to a window you know you have data in." },
+    { "key": "continuationToken", "value": "", "description": "Auto-filled by 'List - Page 1' - 'List - Page 2' reuses it." },
+    { "key": "bagNumber", "value": "", "description": "Set this to your own unique bag number before running 'Register a Bag'. Bag numbers can never be reused via this API, even after cancellation - pick a fresh one each time you run this request." },
+    { "key": "lastUpdatedFromDate", "value": "", "description": "ISO-8601 UTC timestamp - your last successful poll time, for the dateType=lastUpdated delta/watermark example. Must be within 92 days of now." },
+    { "key": "pageToDate", "value": "", "description": "Auto-pinned by 'List - Page 1's pre-request script so Page 2 reuses the identical toDate - don't set this manually." }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "TokenRequest",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "urlencoded",
+              "urlencoded": [
+                { "key": "grant_type", "value": "client_credentials", "type": "text" },
+                { "key": "client_id", "value": "{{clientId}}", "type": "text" },
+                { "key": "client_secret", "value": "{{clientSecret}}", "type": "text" },
+                { "key": "scope", "value": "https://nokasb2ctest.onmicrosoft.com/api/nokas/.default", "type": "text" }
+              ]
+            },
+            "url": {
+              "raw": "https://api-test.nokas.com/oauth2/v2.0/token",
+              "protocol": "https",
+              "host": ["api-test", "nokas", "com"],
+              "path": ["oauth2", "v2.0", "token"]
+            },
+            "description": "Run this first (and whenever the token expires or a role changes) - saves the access token into {{accessToken}}, which every other request's collection-level Bearer auth reads from automatically."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.response.to.have.status(200));",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('accessToken', body.access_token);",
+                  "console.log('accessToken updated, expires_in=' + body.expires_in + 's');"
+                ]
+              }
+            }
+          ],
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Bag Registration",
+      "item": [
+        {
+          "name": "Register a Bag",
+          "request": {
+            "method": "POST",
+            "header": [
+              { "key": "Content-Type", "value": "application/json", "type": "text" },
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "X-Correlation-ID", "value": "{{$guid}}", "type": "text" }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"bagRegistration\": {\n        \"customerRefNumber\": \"{{customerRefNumber}}\",\n        \"registrationType\": \"NOK\",\n        \"messageId\": \"{{$guid}}\",\n        \"bagNumber\": \"{{bagNumber}}\",\n        \"registrationDate\": \"{{$isoTimestamp}}\",\n        \"referenceStatement\": \"postman-example\",\n        \"turnOverDate\": \"{{$isoTimestamp}}\",\n        \"registeredNotes\": \"1000\",\n        \"registeredCoins\": \"0\",\n        \"registeredChecks\": \"0\",\n        \"totalOrderAmount\": \"10000\",\n        \"bagItemsLC\": {\n            \"seddel1000\": \"1000\",\n            \"seddel500\": \"0\",\n            \"seddel200\": \"0\",\n            \"seddel100\": \"0\",\n            \"seddel50\": \"0\"\n        }\n    }\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/bag-registration",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-registration"]
+            },
+            "description": "Set the {{bagNumber}} collection variable to your own unique bag number before running this - bag numbers can never be reused via this API, even after cancellation. On success, also saves it into {{lastCreatedBagNumber}} for the requests below."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.response.to.have.status(201));",
+                  "if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('lastCreatedBagNumber', pm.response.json().bagNumber);",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "Get a Bag",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "X-Correlation-ID", "value": "{{$guid}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bag-registration/{{lastCreatedBagNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-registration", "{{lastCreatedBagNumber}}"]
+            },
+            "description": "Run after 'Register a Bag' - reuses {{lastCreatedBagNumber}}, or set it to any bag number of your own."
+          },
+          "response": []
+        },
+        {
+          "name": "Cancel a Bag",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              { "key": "Accept", "value": "application/json", "type": "text" },
+              { "key": "X-Correlation-ID", "value": "{{$guid}}", "type": "text" }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/bag-registration/{{lastCreatedBagNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-registration", "{{lastCreatedBagNumber}}"]
+            },
+            "description": "No request body needed - only the bagNumber in the path matters."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Counting Result",
+      "item": [
+        {
+          "name": "List - Date Range Only",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{$isoTimestamp}}&customerRefNumber={{customerRefNumber}}&pageSize=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "100" }
+              ]
+            },
+            "description": "No status, no dateType - dateType defaults to 'counted', so this returns every status as long as it was counted in the window. Set {{fromDate}} to a window you know you have data in (must be within 92 days of now)."
+          },
+          "response": []
+        },
+        {
+          "name": "List - Date Range + Status",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{$isoTimestamp}}&status=counted&customerRefNumber={{customerRefNumber}}&pageSize=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "status", "value": "counted" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "100" }
+              ]
+            },
+            "description": "dateType still defaults to 'counted', so pairing it with status=counted is close to redundant here - this combination mainly exists to show status is a valid filter on its own. Try status=registered|in-progress|picked-up|cancelled|error too."
+          },
+          "response": []
+        },
+        {
+          "name": "List - Date Range + DateType",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{$isoTimestamp}}&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "dateType", "value": "registered" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "100" }
+              ]
+            },
+            "description": "No status - the date range now applies to registeredAt instead of countedAt, so this returns every status as long as it was registered in the window (including bags never counted at all)."
+          },
+          "response": []
+        },
+        {
+          "name": "List - DateType lastUpdated (watermark polling)",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{lastUpdatedFromDate}}&toDate={{$isoTimestamp}}&dateType=lastUpdated&customerRefNumber={{customerRefNumber}}&pageSize=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{lastUpdatedFromDate}}" },
+                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "dateType", "value": "lastUpdated" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "100" }
+              ]
+            },
+            "description": "The watermark/delta-polling pattern: set {{lastUpdatedFromDate}} to the timestamp of your last successful poll (not a fixed window like the other examples), and toDate to now. This returns everything that changed - any status transition, not just newly counted - since you last checked, regardless of when it was originally registered. Save the current time after each successful poll and use it as the next call's fromDate, so you never re-scan data you've already processed and never miss a change."
+          },
+          "response": []
+        },
+        {
+          "name": "List - Date Range + Status + DateType",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{$isoTimestamp}}&status=counted&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=100",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "toDate", "value": "{{$isoTimestamp}}" },
+                { "key": "status", "value": "counted" },
+                { "key": "dateType", "value": "registered" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "100" }
+              ]
+            },
+            "description": "The combination that actually differs from the others: bags REGISTERED in this window that are CURRENTLY counted - regardless of when the counting itself happened, which could be well outside this date range."
+          },
+          "response": []
+        },
+        {
+          "name": "List - Page 1 (pageSize=10)",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{pageToDate}}&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "toDate", "value": "{{pageToDate}}" },
+                { "key": "dateType", "value": "registered" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "10" }
+              ]
+            },
+            "description": "You'll need more than 10 bags in your date window for hasMore to come back true. Saves the continuation token into {{continuationToken}} for the next request. The pre-request script pins {{pageToDate}} once so Page 2 reuses the exact same value - the continuation token is bound to the exact query that produced it."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('pageToDate', new Date().toISOString());"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.pagination && body.pagination.continuationToken) {",
+                  "    pm.collectionVariables.set('continuationToken', body.pagination.continuationToken);",
+                  "}",
+                  "console.log('count=' + body.pagination.count + ' hasMore=' + body.pagination.hasMore);"
+                ]
+              }
+            }
+          ],
+          "response": []
+        },
+        {
+          "name": "List - Page 2 (continuationToken)",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results?fromDate={{fromDate}}&toDate={{pageToDate}}&dateType=registered&customerRefNumber={{customerRefNumber}}&pageSize=10&continuationToken={{continuationToken}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results"],
+              "query": [
+                { "key": "fromDate", "value": "{{fromDate}}" },
+                { "key": "toDate", "value": "{{pageToDate}}" },
+                { "key": "dateType", "value": "registered" },
+                { "key": "customerRefNumber", "value": "{{customerRefNumber}}" },
+                { "key": "pageSize", "value": "10" },
+                { "key": "continuationToken", "value": "{{continuationToken}}" }
+              ]
+            },
+            "description": "Run right after 'List - Page 1' - it reuses {{pageToDate}}, which Page 1's pre-request script pinned to a fixed value, so every other query parameter matches exactly (the token is bound to a hash of the full query)."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Counting Result by Bag Number",
+          "protocolProfileBehavior": { "disableBodyPruning": true },
+          "request": {
+            "method": "GET",
+            "header": [{ "key": "Accept", "value": "application/json", "type": "text" }],
+            "url": {
+              "raw": "{{baseUrl}}/bag-counting-results/{{exampleBagNumber}}",
+              "host": ["{{baseUrl}}"],
+              "path": ["bag-counting-results", "{{exampleBagNumber}}"]
+            },
+            "description": "Set the {{exampleBagNumber}} collection variable to one of your own bag numbers that has been counted."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

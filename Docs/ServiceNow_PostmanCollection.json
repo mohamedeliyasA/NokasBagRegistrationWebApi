@@ -1,0 +1,594 @@
+{
+  "info": {
+    "_postman_id": "d3a6c1f2-8b47-4e05-9a1c-2f7e5b9d0c41",
+    "name": "ServiceNow Direct - Bag Registration & Counting Results",
+    "description": "Calls ServiceNow's bag_registration and counting_results endpoints DIRECTLY, bypassing our own DK API. Internal testing only - not partner-facing.\n\nAuth: HTTP Basic, user BizTalkIntegration. Fill snUsername/snPassword from Key Vault kv-dev-nokasapi-cashmgmt, secret ServiceNow--Dk--Credential (JSON with baseUrl/username/password). Never commit real values into this file.\n\nRegistration creates records in the ServiceNow DEV instance. Set nokasClientId to a client id ServiceNow has registered as a source (an unregistered one returns HTTP 500 'Unknown source').\n\nNotes (2026-09-25): counting_results moved to /counting_results/dk and its startDate/endDate now filter on LAST-MODIFIED time, given as 'yyyy-MM-dd HH:mm:ss' in ServiceNow's own Central European time (NOT UTC - a bag registered 06:14 UTC reads 08:14 there). Rows carry clientID, registered date and count date. Bag labels must be issued to the customer's account (for kardex 4200000198 the label starts with 4200198).",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "username",
+        "value": "{{snUsername}}",
+        "type": "string"
+      },
+      {
+        "key": "password",
+        "value": "{{snPassword}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "snBaseUrl",
+      "value": "https://nokastest.service-now.com/api/x_nokas_cash_serv/v1/nokas_cash_service_api"
+    },
+    {
+      "key": "snUsername",
+      "value": ""
+    },
+    {
+      "key": "snPassword",
+      "value": ""
+    },
+    {
+      "key": "nokasClientId",
+      "value": "8c0e44b3-ec8e-4409-8023-1995913aa1c5"
+    },
+    {
+      "key": "nokasCustomerName",
+      "value": "ShopBox"
+    },
+    {
+      "key": "customerRefNumber",
+      "value": "4200000198"
+    },
+    {
+      "key": "windowFrom",
+      "value": ""
+    },
+    {
+      "key": "windowTo",
+      "value": ""
+    },
+    {
+      "key": "today",
+      "value": ""
+    },
+    {
+      "key": "bagNumber",
+      "value": ""
+    },
+    {
+      "key": "messageId",
+      "value": ""
+    },
+    {
+      "key": "registrationDate",
+      "value": ""
+    },
+    {
+      "key": "lastBagNumber",
+      "value": ""
+    },
+    {
+      "key": "lastRecordNumber",
+      "value": ""
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Bag Registration (POST bag_registration)",
+      "item": [
+        {
+          "name": "1.1 Register bag - valid, with nokasSource (expect 200 success)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/bag_registration",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "bag_registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"POS-01\",\n    \"messageId\": \"{{messageId}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": {\n      \"DKK_500\": \"1\",\n      \"DKK_200\": \"1\"\n    }\n  },\n  \"nokasSource\": {\n    \"customerId\": \"{{nokasClientId}}\",\n    \"customerName\": \"{{nokasCustomerName}}\"\n  }\n}"
+            },
+            "description": "Exactly what our API sends: the partner's bagRegistration object plus nokasSource. bagNumber must be a label issued to the customer's account (for kardex 4200000198 it starts with 4200198); otherwise ServiceNow answers HTTP 500 {result:{status:'failed', message:'The bag label number must belong to the account...'}}. A success creates a record in the ServiceNow TEST instance - the reply message names it (NOC...), saved to {{lastRecordNumber}}. Success shape: { result: { status: 'success', message: '...NOC... was created.' } } (the id field has appeared as sys_id and as message_id). Requires {{nokasClientId}} to be a registered source."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('messageId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const r = pm.response.json().result || {};",
+                  "pm.test('status is success', () => pm.expect(r.status).to.eql('success'));",
+                  "const m = /(NOC\\d+)/.exec(r.message || '');",
+                  "if (m) { pm.collectionVariables.set('lastRecordNumber', m[1]); console.log('Created', m[1]); }",
+                  "pm.collectionVariables.set('lastBagNumber', pm.collectionVariables.get('bagNumber'));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.2 Register bag - no nokasSource (what happens without it?)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/bag_registration",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "bag_registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"POS-01\",\n    \"messageId\": \"{{messageId}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": {\n      \"DKK_500\": \"1\",\n      \"DKK_200\": \"1\"\n    }\n  }\n}"
+            },
+            "description": "Observation only: shows whether ServiceNow accepts a request with no source block."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('messageId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.3 Register bag - unregistered source (expect failure)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/bag_registration",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "bag_registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"POS-01\",\n    \"messageId\": \"{{messageId}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": {\n      \"DKK_500\": \"1\",\n      \"DKK_200\": \"1\"\n    }\n  },\n  \"nokasSource\": {\n    \"customerId\": \"00000000-0000-0000-0000-000000000000\",\n    \"customerName\": \"{{nokasCustomerName}}\"\n  }\n}"
+            },
+            "description": "Known behavior: an unregistered source returns HTTP 500 with { error: { message: 'Error: Unknown source <id> (...)' }, status: 'failure' }. A source must be registered on the ServiceNow side before it can register bags. Failure shape has NO 'result' object."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('messageId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('not a 200 success', () => pm.expect(pm.response.code).to.not.eql(200));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.4 Register same bag number again (duplicate handling?)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/bag_registration",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "bag_registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"POS-01\",\n    \"messageId\": \"{{messageId}}\",\n    \"bagNumber\": \"{{lastBagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": {\n      \"DKK_500\": \"1\",\n      \"DKK_200\": \"1\"\n    }\n  },\n  \"nokasSource\": {\n    \"customerId\": \"{{nokasClientId}}\",\n    \"customerName\": \"{{nokasCustomerName}}\"\n  }\n}"
+            },
+            "description": "Run 1.1 first. Observation only: does ServiceNow reject a repeated bagNumber, and with which status/message? We need this to map duplicates to 409."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('messageId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.5 Register bag - missing bagNumber (validation errors?)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/bag_registration",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "bag_registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"POS-01\",\n    \"messageId\": \"{{messageId}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": {\n      \"DKK_500\": \"1\",\n      \"DKK_200\": \"1\"\n    }\n  },\n  \"nokasSource\": {\n    \"customerId\": \"{{nokasClientId}}\",\n    \"customerName\": \"{{nokasCustomerName}}\"\n  }\n}"
+            },
+            "description": "Observation only: what ServiceNow returns for a missing mandatory field."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('messageId', pm.variables.replaceIn('{{$guid}}'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "1.6 Register bag - same messageId twice (idempotency?)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/bag_registration",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "bag_registration"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"bagRegistration\": {\n    \"customerRefNumber\": \"{{customerRefNumber}}\",\n    \"cashRegisterId\": \"POS-01\",\n    \"messageId\": \"{{messageId}}\",\n    \"bagNumber\": \"{{bagNumber}}\",\n    \"registrationDate\": \"{{registrationDate}}\",\n    \"totalOrderAmount\": \"700.00\",\n    \"bagItemsLC\": {\n      \"DKK_500\": \"1\",\n      \"DKK_200\": \"1\"\n    }\n  },\n  \"nokasSource\": {\n    \"customerId\": \"{{nokasClientId}}\",\n    \"customerName\": \"{{nokasCustomerName}}\"\n  }\n}"
+            },
+            "description": "Send twice WITHOUT running 1.1 in between (messageId stays the same, bagNumber changes). Observation only: is messageId used for idempotency?"
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (!pm.collectionVariables.get('messageId')) { pm.collectionVariables.set('messageId', pm.variables.replaceIn('{{$guid}}')); }",
+                  "pm.collectionVariables.set('bagNumber', '4200198' + String(Math.floor(Date.now() / 1000) % 100000).padStart(5, '0'));",
+                  "pm.collectionVariables.set('registrationDate', new Date().toISOString().slice(0, 10));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "2. Counting Results (GET counting_results)",
+      "item": [
+        {
+          "name": "2.1 Changed in the last 15 minutes (what the sync does)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/counting_results/dk?startDate={{windowFrom}}&endDate={{windowTo}}",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "counting_results",
+                "dk"
+              ],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "{{windowFrom}}"
+                },
+                {
+                  "key": "endDate",
+                  "value": "{{windowTo}}"
+                }
+              ]
+            },
+            "description": "startDate/endDate filter on LAST-MODIFIED time (changed 2026-09-25) and are given in ServiceNow's local time as 'yyyy-MM-dd HH:mm:ss'. This is exactly what the sync Function does every 10 minutes: ask for what changed since last time. The pre-request script builds the window in Copenhagen time - sending UTC would quietly return nothing."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// ServiceNow speaks Central European time (CET/CEST), not UTC - build the window in theirs.",
+                  "const fmt = d => new Date(d).toLocaleString('sv-SE', { timeZone: 'Europe/Copenhagen' }).replace('T', ' ').slice(0, 19);",
+                  "pm.collectionVariables.set('windowTo', fmt(Date.now()));",
+                  "pm.collectionVariables.set('windowFrom', fmt(Date.now() - 15 * 60 * 1000));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const rows = (j.result && j.result.result) || [];",
+                  "pm.test('has result.result array', () => pm.expect(rows).to.be.an('array'));",
+                  "console.log('rows:', rows.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.2 A wide window (everything we would backfill)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/counting_results/dk?startDate=2026-01-01 00:00:00&endDate=2030-12-31 23:59:59",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "counting_results",
+                "dk"
+              ],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "2026-01-01 00:00:00"
+                },
+                {
+                  "key": "endDate",
+                  "value": "2030-12-31 23:59:59"
+                }
+              ]
+            },
+            "description": "What the Function's very first run asks for. Useful for seeing the whole data set."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const rows = (j.result && j.result.result) || [];",
+                  "pm.test('has result.result array', () => pm.expect(rows).to.be.an('array'));",
+                  "console.log('rows:', rows.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.3 Today",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/counting_results/dk?startDate={{today}} 00:00:00&endDate={{today}} 23:59:59",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "counting_results",
+                "dk"
+              ],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "{{today}} 00:00:00"
+                },
+                {
+                  "key": "endDate",
+                  "value": "{{today}} 23:59:59"
+                }
+              ]
+            },
+            "description": "Everything modified today, in ServiceNow's local time."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const today = new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' });",
+                  "pm.collectionVariables.set('today', today);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const j = pm.response.json();",
+                  "const rows = (j.result && j.result.result) || [];",
+                  "pm.test('has result.result array', () => pm.expect(rows).to.be.an('array'));",
+                  "console.log('rows:', rows.length);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "2.4 Find the record created by 1.1",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{snBaseUrl}}/counting_results/dk?startDate={{today}} 00:00:00&endDate={{today}} 23:59:59",
+              "host": [
+                "{{snBaseUrl}}"
+              ],
+              "path": [
+                "counting_results",
+                "dk"
+              ],
+              "query": [
+                {
+                  "key": "startDate",
+                  "value": "{{today}} 00:00:00"
+                },
+                {
+                  "key": "endDate",
+                  "value": "{{today}} 23:59:59"
+                }
+              ]
+            },
+            "description": "Run 1.1 first. Confirms a registration shows up in counting_results, and how quickly."
+          },
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set('today', new Date().toLocaleDateString('sv-SE', { timeZone: 'Europe/Copenhagen' }));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('HTTP 200', () => pm.response.to.have.status(200));",
+                  "const rows = (pm.response.json().result || {}).result || [];",
+                  "const want = pm.collectionVariables.get('lastRecordNumber');",
+                  "pm.test('record ' + want + ' is present', () => pm.expect(rows.map(r => r.number)).to.include(want));"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

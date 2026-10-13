@@ -1,0 +1,5 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Common/Nokas.CashMgmt.Common/Nokas.CashMgmt.Common.csproj" />
+  </Folder>
+</Solution>

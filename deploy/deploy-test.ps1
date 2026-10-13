@@ -38,15 +38,15 @@ $env:AZURE_EXTENSION_USE_DYNAMIC_INSTALL = 'no'
 # ---- TEST environment constants -------------------------------------
 $SubscriptionId = 'd4008c31-6d0b-4eb0-8c95-a17c9ba9fb6c'   # corp-lz-test-dev-001
 $ResourceGroup  = 'rg-nokasapi-cashmgmt'
-$ApiApp         = 'api-nokas-bagreg'
-$FuncApp        = 'func-test-nokas-api-bagreg'
+$ApiApp         = 'api-nokas-bagreg-v2'
+$FuncApp        = 'func-test-nokas-bagreg-v2'
 $PortalApp      = 'nokas-integration-portal'
 $ApiPublicUrl   = 'https://api-test.nokas.com'
 $FuncHost       = 'https://func-test-nokas-api-bagreg-cwe9eddzbmhjhtfe.norwayeast-01.azurewebsites.net'
 
 $RepoRoot   = Split-Path -Parent $PSScriptRoot
-$ApiProj    = Join-Path $RepoRoot 'Nokas.CashMgmt.BagRegistration.API\Nokas.CashMgmt.BagRegistration.API\Nokas.CashMgmt.BagRegistration.API.csproj'
-$FuncProj   = Join-Path $RepoRoot 'Nokas.CashMgmt.BagReg.Func\Nokas.CashMgmt.BagReg.Func\Nokas.CashMgmt.BagReg.Func.csproj'
+$ApiProj    = Join-Path $RepoRoot 'src\Norway\Nokas.CashMgmt.No.Api\Nokas.CashMgmt.No.Api.csproj'
+$FuncProj   = Join-Path $RepoRoot 'src\Norway\Nokas.CashMgmt.No.Func\Nokas.CashMgmt.No.Func.csproj'
 $PortalDir  = Join-Path $RepoRoot 'NokasIntegrationPortal'
 $StageRoot  = Join-Path $env:TEMP "nokas-deploy-$(Get-Date -Format 'yyyyMMdd-HHmmss')"
 

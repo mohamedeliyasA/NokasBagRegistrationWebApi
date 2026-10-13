@@ -1,8 +1,8 @@
 {
-    "azureFunctions.deploySubpath": "Nokas.CashMgmt.BagReg.Func\\Nokas.CashMgmt.BagReg.Func/bin/Release/net8.0/publish",
+    "azureFunctions.deploySubpath": "src/Norway/Nokas.CashMgmt.No.Func/bin/Release/net10.0/publish",
     "azureFunctions.projectLanguage": "C#",
     "azureFunctions.projectRuntime": "~4",
     "debug.internalConsoleOptions": "neverOpen",
     "azureFunctions.preDeployTask": "publish (functions)",
-    "dotnet.defaultSolution": "Nokas.CashMgmt.BagRegistration.API/Nokas.CashMgmt.BagRegistration.API.sln"
+    "dotnet.defaultSolution": "Nokas.CashMgmt.All.slnx"
 }

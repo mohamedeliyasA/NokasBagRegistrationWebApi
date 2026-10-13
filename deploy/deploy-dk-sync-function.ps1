@@ -19,7 +19,7 @@ function Assert-Success($what) {
 
 $ResourceGroup = "rg-nokasapi-cashmgmt"
 $FuncName      = "func-test-nokas-bagreg-dk"
-$ProjectPath   = Join-Path $PSScriptRoot "..\src\Nokas.CashMgmt.Dk.BagRegistration.Func"
+$ProjectPath   = Join-Path $PSScriptRoot "..\src\Denmark\Nokas.CashMgmt.Dk.Func"
 $PublishDir    = Join-Path $ProjectPath "publish_dk_func"
 $ZipPath       = Join-Path $env:TEMP "nokas-dk-sync-func.zip"
 

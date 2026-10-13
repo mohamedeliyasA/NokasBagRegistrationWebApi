@@ -1,0 +1,10 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Norway/Nokas.CashMgmt.No.Shared/Nokas.CashMgmt.No.Shared.csproj" />
+    <Project Path="src/Norway/Nokas.CashMgmt.No.Api/Nokas.CashMgmt.No.Api.csproj" />
+    <Project Path="src/Norway/Nokas.CashMgmt.No.Func/Nokas.CashMgmt.No.Func.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Norway/Nokas.CashMgmt.No.Api.Tests/Nokas.CashMgmt.No.Api.Tests.csproj" />
+  </Folder>
+</Solution>

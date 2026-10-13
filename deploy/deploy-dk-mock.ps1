@@ -27,7 +27,7 @@ function Assert-Success($what) {
 
 $ResourceGroup = "rg-nokasapi-cashmgmt"
 $AppName       = "api-nokas-bagreg-dk"
-$ProjectPath   = Join-Path $PSScriptRoot "..\src\Nokas.CashMgmt.Dk.BagRegistration.Api"
+$ProjectPath   = Join-Path $PSScriptRoot "..\src\Denmark\Nokas.CashMgmt.Dk.Api"
 $PublishDir    = Join-Path $ProjectPath "publish_dk"
 $ZipPath       = Join-Path $env:TEMP "nokas-dk-stub.zip"
 

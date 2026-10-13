@@ -1,11 +1,10 @@
 <Solution>
   <Folder Name="/src/">
-    <Project Path="src/Nokas.CashMgmt.Dk.BagRegistration.Api/Nokas.CashMgmt.Dk.BagRegistration.Api.csproj" />
-    <Project Path="src/Nokas.CashMgmt.Dk.BagRegistration.Func/Nokas.CashMgmt.Dk.BagRegistration.Func.csproj" />
-    <Project Path="src/Nokas.CashMgmt.Dk.Shared/Nokas.CashMgmt.Dk.Shared.csproj" />
-    <Project Path="src/Nokas.CashMgmt.Shared/Nokas.CashMgmt.Shared.csproj" />
+    <Project Path="src/Denmark/Nokas.CashMgmt.Dk.Shared/Nokas.CashMgmt.Dk.Shared.csproj" />
+    <Project Path="src/Denmark/Nokas.CashMgmt.Dk.Api/Nokas.CashMgmt.Dk.Api.csproj" />
+    <Project Path="src/Denmark/Nokas.CashMgmt.Dk.Func/Nokas.CashMgmt.Dk.Func.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <Project Path="tests/Nokas.CashMgmt.Dk.BagRegistration.Api.Tests/Nokas.CashMgmt.Dk.BagRegistration.Api.Tests.csproj" />
+    <Project Path="tests/Denmark/Nokas.CashMgmt.Dk.Api.Tests/Nokas.CashMgmt.Dk.Api.Tests.csproj" />
   </Folder>
 </Solution>

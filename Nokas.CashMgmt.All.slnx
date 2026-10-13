@@ -1,0 +1,17 @@
+<Solution>
+  <Folder Name="/common/">
+    <Project Path="src/Common/Nokas.CashMgmt.Common/Nokas.CashMgmt.Common.csproj" />
+  </Folder>
+  <Folder Name="/norway/">
+    <Project Path="src/Norway/Nokas.CashMgmt.No.Shared/Nokas.CashMgmt.No.Shared.csproj" />
+    <Project Path="src/Norway/Nokas.CashMgmt.No.Api/Nokas.CashMgmt.No.Api.csproj" />
+    <Project Path="src/Norway/Nokas.CashMgmt.No.Func/Nokas.CashMgmt.No.Func.csproj" />
+    <Project Path="tests/Norway/Nokas.CashMgmt.No.Api.Tests/Nokas.CashMgmt.No.Api.Tests.csproj" />
+  </Folder>
+  <Folder Name="/denmark/">
+    <Project Path="src/Denmark/Nokas.CashMgmt.Dk.Shared/Nokas.CashMgmt.Dk.Shared.csproj" />
+    <Project Path="src/Denmark/Nokas.CashMgmt.Dk.Api/Nokas.CashMgmt.Dk.Api.csproj" />
+    <Project Path="src/Denmark/Nokas.CashMgmt.Dk.Func/Nokas.CashMgmt.Dk.Func.csproj" />
+    <Project Path="tests/Denmark/Nokas.CashMgmt.Dk.Api.Tests/Nokas.CashMgmt.Dk.Api.Tests.csproj" />
+  </Folder>
+</Solution>

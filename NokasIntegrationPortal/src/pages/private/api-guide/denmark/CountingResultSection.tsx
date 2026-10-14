@@ -7,7 +7,7 @@ const ROUTE = "/api/cash-mgmt/dk/bag-counting-results";
 const params: { name: string; required: string; description: string }[] = [
   { name: "fromDate", required: "Yes", description: "ISO-8601 UTC start of the window (see dateType)." },
   { name: "toDate", required: "Yes", description: "ISO-8601 UTC end of the window. The window may not exceed 92 days." },
-  { name: "dateType", required: "No", description: "Which date the window applies to: lastUpdated (default), registered or counted. Results are sorted newest first on that date. A bag that is not counted yet is never returned for dateType=counted." },
+  { name: "dateType", required: "No", description: "Which date the window applies to: lastUpdated (default), registered or counted. Results are sorted newest first on that date. A bag that is not counted yet is never returned for dateType=counted. Because countedAt is a date, dateType=counted matches whole days — use lastUpdated if you need the precise moment a bag last changed." },
   { name: "status", required: "No", description: "One of the status values listed below." },
   { name: "customerRefNumber", required: "No", description: "Only results for this branch. A value that is not yours returns an empty list, never an error." },
   { name: "pageSize", required: "No", description: "1–500, default 100." },
@@ -24,7 +24,7 @@ const fields: { field: string; description: string }[] = [
   { field: "countedAmount", description: "Counted by NOKAS. Null until counted." },
   { field: "deviationAmount", description: "Counted minus declared. Null until both exist." },
   { field: "registeredAt", description: "When the bag was registered." },
-  { field: "countedAt", description: "The day the bag was counted. Null until counted." },
+  { field: "countedAt", description: "The day the bag was counted, as a date at 00:00:00Z — there is no time of day, so do not read one from it. Null until counted." },
   { field: "lastUpdatedAt", description: "When the record last changed." },
 ];
 
@@ -68,6 +68,14 @@ export default function DenmarkCountingResultSection() {
         A <InlineCode>toDate</InlineCode> with no time covers that entire day, so{" "}
         <InlineCode>toDate=2026-09-23</InlineCode> includes everything up to midnight. Pass an
         explicit time (<InlineCode>2026-09-23T12:00:00Z</InlineCode>) if you need an exact cut-off.
+      </Callout>
+
+      <Callout tone="warning" title="countedAt is a date, not a timestamp">
+        NOKAS records the counting <em>day</em>, not the time of day, so{" "}
+        <InlineCode>countedAt</InlineCode> is always midnight UTC of that date — a bag counted on the
+        14th reads <InlineCode>2026-10-14T00:00:00Z</InlineCode> whatever time it was counted.
+        Compare it by date, and if you need to know when a record last changed use{" "}
+        <InlineCode>lastUpdatedAt</InlineCode>, which is a real timestamp.
       </Callout>
 
       <Callout tone="info" title="When do my bags appear?">

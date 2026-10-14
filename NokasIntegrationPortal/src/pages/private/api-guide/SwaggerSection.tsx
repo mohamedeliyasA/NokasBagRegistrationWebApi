@@ -3,9 +3,6 @@ import { Callout, InlineCode, PageHeader, SectionHeading } from "@/components/ui
 import { useMarket } from "./market";
 
 const DEVELOPER_PORTAL_URL = "https://apim-avarn-dev-test.developer.azure-api.net/";
-// Static asset served from public/ - same file the public /swagger page links to.
-const POSTMAN_COLLECTION = "/BagReg_PostmanCollection.json";
-
 const LOAD_TIMEOUT_MS = 8000;
 
 export default function SwaggerSection() {

@@ -167,6 +167,59 @@ Guidance for Claude Code when working in this solution. Read this fully before m
 > `BagCountingResultsController.cs`/`CountingResultResponse.cs`, not assumed from the design doc.
 
 >
+> ## 🧱 SOLUTION RESTRUCTURE — done 2026-10-14, supersedes every layout/solution statement below
+>
+> The repo was reorganised country-wise. **Anything further down this file describing `src/Nokas.CashMgmt.*`
+> flat folders, `Nokas.CashMgmt.slnx`, `Nokas.CashMgmt.Shared`, or the v1 projects is stale** — those names
+> no longer exist. Live build stamp confirming it: `1.0.0+e5b4f9b2… @ 2026-10-13T17:45:12Z`.
+>
+> **Four solutions.** Each market solution lists only that market; **`Nokas.CashMgmt.Common` is referenced,
+> not listed** — MSBuild follows `ProjectReference` regardless of solution membership (verified empirically),
+> so each market still builds Common from source without carrying the other market in its workspace. The
+> cost is IDE-only: from a market solution, F12 into Common lands on decompiled metadata and you cannot
+> breakpoint it — open `All` for that.
+>
+> | Solution | Contents |
+> |---|---|
+> | `Nokas.CashMgmt.Common.slnx` | Common alone |
+> | `Nokas.CashMgmt.No.slnx` | No.Shared + No.Api + No.Func + Norway tests |
+> | `Nokas.CashMgmt.Dk.slnx` | Dk.Shared + Dk.Api + Dk.Func + Denmark tests |
+> | `Nokas.CashMgmt.All.slnx` | everything — **use for any Common change and in CI**, it is the only build that proves a Common change has not broken the other market |
+>
+> ```
+> src/Common/   Nokas.CashMgmt.Common          correlation, ErrorResponse, Result, Cosmos STJ serializer
+> src/Norway/   Nokas.CashMgmt.No.Shared       NattsafeStatusMapper, BagStatusRecord, NO documents
+>               Nokas.CashMgmt.No.Api  |  Nokas.CashMgmt.No.Func
+> src/Denmark/  Nokas.CashMgmt.Dk.Shared  |  Nokas.CashMgmt.Dk.Api  |  Nokas.CashMgmt.Dk.Func
+> tests/Norway/ Nokas.CashMgmt.No.Api.Tests        tests/Denmark/ Nokas.CashMgmt.Dk.Api.Tests
+> ```
+>
+> **The old `Nokas.CashMgmt.Shared` was never actually cross-market** — 6 of its 10 files were
+> Nattsafe/Norway-specific and every Danish project compiled against them. It is split: `Common` (the 4
+> genuinely shared files) and `No.Shared` (the 6 Norway ones). **"Shared" now means exactly one thing:
+> shared between that market's API and Function.** Verified after the split: zero references from any
+> Danish project to anything Nattsafe-named, so that standing rule is now enforced by the compiler.
+>
+> **Each market's API and Function stay in ONE solution on purpose.** They share a wire contract —
+> `BagStatusRecord` (Norway), `DkCountingResultDocument` (Denmark): the Function writes it, the API reads
+> it. Splitting them into separate solutions would turn a breaking change from a compile error into a
+> silent runtime mismatch where the partner sees nulls. Do not separate them.
+>
+> **Also in that change:** v1 (`Nokas.CashMgmt.BagRegistration.API/`, `Nokas.CashMgmt.BagReg.Func/`) deleted;
+> the underscored `Nokas_CashMgmt_BagRegistration_Func.csproj` fixed; **`deploy-test.ps1`'s `api`/`func`
+> targets repointed from the deleted v1 projects to the v2 Norway projects and apps** (closing the
+> "Norway has no deploy script" gap); DK deploy script paths updated; `.vscode` settings/tasks repointed
+> off the deleted tree; a dead scaffolded `.http` (`GET /weatherforecast`) removed.
+>
+> **Verified:** all four solutions build, **243 tests pass (109 Norway + 134 Denmark — identical to the
+> pre-restructure baseline)**, all four deployables publish, both DK apps redeployed and the live build
+> stamp matches the commit, `DkCountingResultSync` re-registered and running, zero Error/Critical telemetry.
+>
+> **Gotcha worth keeping:** `deploy-dk-mock.ps1`'s build-stamp read-back step now fails with `403` — the DK
+> app only accepts inbound from APIM/Front Door and the old `allow-dev-temp` rule is gone. That is not a
+> failed deploy. Read the stamp through Front Door instead: `curl -D - https://api-test.nokas.com/dk/swagger/index.html`
+> (APIM's own `401` never reaches the app, so it carries no `X-Build-Stamp`).
+>
 > ## 🇩🇰 DENMARK — new market, ServiceNow-backed (started 2026-08-18)
 >
 > A second market is being built alongside Norway. **Architecturally a mirror of the Norwegian v2
@@ -879,7 +932,7 @@ Timer Function (every 30 min, VNet) calls read-only SP `usp_CountingResult_Fetch
 - **B2C policies:** upload order matters — Base → Localization → Extensions → RP files. Tenant `nokasb2ctest.onmicrosoft.com` (TEST). Policy IDs are referenced by exact name in `authConfig.ts`.
 - **Testing the API as a partner:** client-credentials token per the OAuth guide (`scope=https://nokasb2ctest.onmicrosoft.com/api/nokas/.default`), Postman collection in `wwwroot/docs/`.
 - No automated test project for the OLD *registration* API — by explicit prior preference for that codebase; verification there is `dotnet build` + manual testing via Postman/Swagger. **The v2 rewrite and counting-result work do not carry this preference forward** — both get real unit test coverage (55 tests as of Batch 03 for v2 registration; see `tests/`).
-- **v2 rewrite build/test**: solution file is `Nokas.CashMgmt.slnx` (repo root, the newer XML format — `dotnet build Nokas.CashMgmt.slnx` / `dotnet test tests/Nokas.CashMgmt.BagRegistration.Api.Tests`). This is **separate** from the old projects' own `.sln` files (`Nokas.CashMgmt.BagRegistration.API.sln`, `Nokas.CashMgmt.BagReg.Func.sln`) — the new solution doesn't reference the old projects at all, by design (they stay independently buildable/deployable until cutover, see the callout at the top of this file).
+- **Build/test**: four `.slnx` files at the repo root — see the solution-restructure callout at the top. `dotnet build Nokas.CashMgmt.No.slnx` / `Nokas.CashMgmt.Dk.slnx` for one market, `Nokas.CashMgmt.All.slnx` for everything (always use `All` after touching `Nokas.CashMgmt.Common`). `dotnet test Nokas.CashMgmt.All.slnx` runs all 243 tests. The v1 `.sln` files are gone with the v1 projects.
 - **v2 deploy** currently has no dedicated script (the old `deploy-test.ps1` only knows the old projects) — deploys this session were done manually: `dotnet publish -c Release -o publish`, zip it, `az webapp deploy --type zip` (API) / `az functionapp deployment source config-zip` (Function). Consider writing a `deploy-v2.ps1` if this becomes frequent enough to be worth it.
 
 ## Deployment

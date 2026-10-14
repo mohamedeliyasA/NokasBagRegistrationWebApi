@@ -181,7 +181,9 @@ public sealed class DkCountingResultSyncService(
             ReadDecimal(row, "registeredAmount"),
             ReadDecimal(row, "countedAmount"),
             clock.TryParse(ReadString(row, "regiteredDate") ?? ReadString(row, "registeredDate"), out var registeredAt) ? registeredAt : null,
-            clock.TryParse(ReadString(row, "countDate"), out var countedAt) ? countedAt : null,
+            // countDate carries no time of day, so it must not be timezone-converted - see
+            // ServiceNowClock.TryParseDateOrTimestamp.
+            clock.TryParseDateOrTimestamp(ReadString(row, "countDate"), out var countedAt) ? countedAt : null,
             lastUpdatedAt);
     }
 

@@ -39,6 +39,40 @@ public sealed class ServiceNowClock
     /// time, and an invalid one (the hour that does not exist in spring) is nudged forward - both
     /// are one-hour effects on a record's own timestamp, never on the query window.
     /// </summary>
+    /// <summary>
+    /// Parses a value that may be a bare date ("yyyy-MM-dd") or a full timestamp.
+    /// <para>
+    /// A bare date is a label for a calendar day, not an instant, so it is returned as midnight UTC
+    /// of that same day and never passed through the timezone conversion. Converting it would move
+    /// it: midnight CEST in UTC is 22:00 the previous day, which pushed every counted date back one
+    /// day and made a dateType=counted query return the wrong day's bags.
+    /// </para>
+    /// <para>
+    /// A full timestamp still goes through <see cref="TryParse"/>, because that genuinely is an
+    /// instant expressed in their wall clock and does need converting.
+    /// </para>
+    /// </summary>
+    public bool TryParseDateOrTimestamp(string? raw, out DateTime utc)
+    {
+        utc = default;
+
+        if (string.IsNullOrWhiteSpace(raw))
+        {
+            return false;
+        }
+
+        var trimmed = raw.Trim();
+
+        if (DateTime.TryParseExact(trimmed, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var calendarDate))
+        {
+            utc = DateTime.SpecifyKind(calendarDate.Date, DateTimeKind.Utc);
+            return true;
+        }
+
+        return TryParse(trimmed, out utc);
+    }
+
     public bool TryParse(string? raw, out DateTime utc)
     {
         utc = default;

@@ -32,7 +32,10 @@ public sealed class CountingResultSyncOptions
 {
     public bool Enabled { get; init; } = true;
 
-    public int PollIntervalMinutes { get; init; } = 2;
+    // No interval property here: the schedule is the Function's own TimerTrigger
+    // ("0 */10 * * * *"). A PollIntervalMinutes left over from when this ran as a
+    // BackgroundService inside the API was removed - nothing read it, and it looked
+    // authoritative enough that changing it would seem to retune the sync.
 
     /// <summary>
     /// How far back before the stored watermark each run starts. Absorbs clock differences

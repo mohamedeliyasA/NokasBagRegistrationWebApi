@@ -248,11 +248,39 @@ public class ServiceNowClockTests
     }
 
     [Fact]
-    public void DateOnlyValue_IsAccepted()
+    public void TryParse_TreatsEvenABareDateAsAnInstant_WhichIsWhyCountDateMustNotUseIt()
     {
+        // Documents the trap rather than endorsing it: TryParse converts, so a bare date comes back
+        // as 22:00 the PREVIOUS day. countDate goes through TryParseDateOrTimestamp instead.
         Assert.True(Clock.TryParse("2026-09-23", out var utc));
         Assert.Equal(new DateTime(2026, 9, 22, 22, 0, 0, DateTimeKind.Utc), utc);
     }
+
+    [Theory]
+    [InlineData("2026-10-14", 2026, 10, 14)]
+    [InlineData("2026-10-13", 2026, 10, 13)]
+    [InlineData("2026-01-15", 2026, 1, 15)]   // winter: offset differs, the date must not
+    public void BareDate_KeepsItsOwnDayAtMidnightUtc(string raw, int y, int m, int d)
+    {
+        Assert.True(Clock.TryParseDateOrTimestamp(raw, out var utc));
+        Assert.Equal(new DateTime(y, m, d, 0, 0, 0, DateTimeKind.Utc), utc);
+        Assert.Equal(DateTimeKind.Utc, utc.Kind);
+    }
+
+    [Fact]
+    public void FullTimestamp_StillConverts_BecauseItReallyIsAnInstant()
+    {
+        // The observed case: lastModified "2026-10-14 12:19:10" is 10:19:10 UTC.
+        Assert.True(Clock.TryParseDateOrTimestamp("2026-10-14 12:19:10", out var utc));
+        Assert.Equal(new DateTime(2026, 10, 14, 10, 19, 10, DateTimeKind.Utc), utc);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("not a date")]
+    public void DateOrTimestamp_RejectsRubbish(string? raw) =>
+        Assert.False(Clock.TryParseDateOrTimestamp(raw, out _));
 
     [Theory]
     [InlineData(null)]

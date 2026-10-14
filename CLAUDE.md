@@ -167,6 +167,43 @@ Guidance for Claude Code when working in this solution. Read this fully before m
 > `BagCountingResultsController.cs`/`CountingResultResponse.cs`, not assumed from the design doc.
 
 >
+> ## 🗓️ `countedAt` was one day early for every counted bag — FIXED 2026-10-14
+>
+> ServiceNow sends `countDate` as a **bare date** (`"2026-10-14"`) and never a timestamp — confirmed by the
+> owner. The sync routed it through `ServiceNowClock.TryParse`, which exists to convert their offset-less
+> **timestamps** from Central European wall clock to UTC. Converting a bare date that way subtracts the
+> offset from midnight, so it lands at **22:00 the previous day**: every counted date was stored one day
+> early, and `dateType=counted` for today returned **nothing**, every day, while today's bags answered to
+> yesterday's query. It also hid rows from date-filtered queries entirely (`NOC0432963` reappeared only
+> after the fix).
+>
+> **A date is a label for a day, not an instant.** `ServiceNowClock.TryParseDateOrTimestamp` now branches on
+> the shape: a bare `yyyy-MM-dd` becomes midnight **UTC of that same date** with no conversion, anything
+> longer still goes through `TryParse` (so if they ever send a real count timestamp it is handled correctly
+> without another change). Only `countDate` uses it — `regiteredDate`/`lastModified` are genuine instants and
+> were always right. **Partners should treat `countedAt` as a DATE**: there is no time-of-day in the source.
+>
+> **A test was asserting the bug** (`DateOnlyValue_IsAccepted` expected `09-23` → `09-22T22:00Z`) and passed
+> happily for weeks. It is kept, renamed
+> `TryParse_TreatsEvenABareDateAsAnInstant_WhichIsWhyCountDateMustNotUseIt`, so it documents the trap instead
+> of blessing it. 7 new cases cover both observed dates plus a January date, where the offset changes but the
+> date must not.
+>
+> **Stored rows do not self-heal.** The sync is incremental on `lastModified`, so already-synced rows are
+> never re-fetched. Deleting the `sync-state` doc forces the first-run path (`InitialLookbackDays`, 120) and
+> rewrites everything — verified: `fetched 13, upserted 13, firstRun True`. Do this after any mapping change.
+>
+> **Verified live**: NOC0432970 `countDate 2026-10-13` → `2026-10-13T00:00:00Z`; NOC0432971/2
+> `countDate 2026-10-14` → `2026-10-14T00:00:00Z`; `dateType=counted` today went `0` → `3`, yesterday
+> returned the right bag. Deviation `-20` unaffected. 250 tests pass (141 DK + 109 NO).
+>
+> **Also removed:** app settings `DK_SYNC_SCHEDULE` and
+> `ServiceNow__CountingResultSync__PollIntervalMinutes`, plus the `PollIntervalMinutes` property behind it.
+> Nothing read it — it survived from the BackgroundService era and looked authoritative enough that editing
+> it would appear to retune the sync. **The schedule is the Function's `TimerTrigger("0 */10 * * * *")` and
+> nothing else.** Their `difference` field is also not to be trusted (owner: manual error on their side,
+> absent in prod) — we compute `deviationAmount` ourselves.
+>
 > ## 🧱 SOLUTION RESTRUCTURE — done 2026-10-14, supersedes every layout/solution statement below
 >
 > The repo was reorganised country-wise. **Anything further down this file describing `src/Nokas.CashMgmt.*`
